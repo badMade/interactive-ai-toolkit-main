@@ -1,4 +1,9 @@
-"""Utility to (re)generate the repository notes file."""
+"""Utility helpers to (re)generate the repository ``notes.txt`` file.
+
+The script exposes pure helper functions so they can be imported by tests or
+other automation without relying on side effects. Running the module directly
+updates ``notes.txt`` in the project root when the canonical contents change.
+"""
 from __future__ import annotations
 
 from pathlib import Path
@@ -6,7 +11,11 @@ from textwrap import dedent
 
 
 def build_notes() -> str:
-    """Return the canonical notes.txt contents."""
+    """Construct the canonical ``notes.txt`` contents.
+
+    Returns:
+        str: Fully formatted notes document including newline termination.
+    """
     return dedent(
         """
         Purpose of the Program
@@ -57,7 +66,11 @@ def build_notes() -> str:
 
 
 def write_notes(project_root: Path) -> None:
-    """Write notes.txt with canonical content if needed."""
+    """Write ``notes.txt`` with canonical content when changes are detected.
+
+    Args:
+        project_root: Root directory that should contain ``notes.txt``.
+    """
     notes_path = project_root / "notes.txt"
     content = build_notes()
 
@@ -68,6 +81,8 @@ def write_notes(project_root: Path) -> None:
 
 
 def main() -> None:
+    """Synchronize ``notes.txt`` with the generated canonical content."""
+
     write_notes(Path(__file__).resolve().parents[1])
 
 
