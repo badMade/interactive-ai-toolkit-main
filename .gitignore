@@ -1,0 +1,27 @@
+# venv & caches
+.venv/
+env/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.huggingface/
+.hf_cache/
+.cache/
+*.cache/
+*.ipynb_checkpoints
+
+# OS cruft
+.DS_Store
+Thumbs.db
+
+# Binaries / big stuff
+ffmpeg.exe
+*.dll
+*.lib
+
+# Audio outputs (keep sample input only)
+*.wav
+*.mp3
+!lesson_recording.mp3
