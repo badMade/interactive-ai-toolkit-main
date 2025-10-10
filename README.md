@@ -10,10 +10,10 @@ This repo supports your article “AI in Inclusive Education: Build Your First A
 ---
 
 ## Demo screenshots
-- `Images/ffmpeg-version.jpg` — PowerShell showing `ffmpeg -version`.
-- `Images/whisper-transcript.jpg` — Terminal transcript output from Whisper.
-- `Images/tts-saved-ok.jpg` — Terminal showing “✅ Audio saved as output.wav”.
-- `Images/output-wav-explorer.jpg` — Explorer showing `output.wav` created.
+- ![PowerShell showing `ffmpeg -version`](Images/ffmpeg-version.jpg)
+- ![Terminal transcript output from Whisper](Images/whisper-transcript.jpg)
+- ![Terminal showing “✅ Audio saved as output.wav”](Images/tts-saved-ok.jpg)
+- ![Explorer showing `output.wav` created](Images/output-wav-explorer.jpg)
 
 *(Screenshots are optional—add yours or delete this section.)*
 
