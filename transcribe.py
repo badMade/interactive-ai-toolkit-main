@@ -1,4 +1,10 @@
-"""Command-line utility for transcribing audio files with Whisper."""
+"""Command-line utility for transcribing audio files with OpenAI Whisper.
+
+The module exposes small helper functions so other scripts can reuse the
+argument parsing and transcription logic programmatically. The default audio
+file and model are configured for local experimentation but can be overridden
+on the command line.
+"""
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
 from typing import Any, Dict
@@ -10,7 +16,13 @@ DEFAULT_MODEL = "base"
 
 
 def parse_arguments() -> Namespace:
-    """Parse command-line options for the transcription script."""
+    """Parse command-line options for the transcription script.
+
+    Returns:
+        Namespace: Parsed arguments containing the ``audio_path`` of the file to
+        transcribe, the ``model`` name to load, and the ``fp16`` flag that
+        indicates whether half-precision inference should be attempted.
+    """
     parser = ArgumentParser(description="Transcribe an audio file with Whisper.")
     parser.add_argument(
         "audio_path",
@@ -32,7 +44,17 @@ def parse_arguments() -> Namespace:
 
 
 def load_audio_path(raw_path: str) -> Path:
-    """Resolve and validate the provided audio path."""
+    """Resolve and validate the audio source path provided by the caller.
+
+    Args:
+        raw_path: Raw path value supplied via the CLI or a calling function.
+
+    Returns:
+        Path: Absolute path pointing to the audio file on disk.
+
+    Raises:
+        FileNotFoundError: If ``raw_path`` does not reference an existing file.
+    """
     audio_path = Path(raw_path).expanduser().resolve()
     if not audio_path.is_file():
         raise FileNotFoundError(f"Audio file not found: {audio_path}")
@@ -40,13 +62,27 @@ def load_audio_path(raw_path: str) -> Path:
 
 
 def transcribe_audio(audio_path: Path, model_name: str, use_fp16: bool) -> Dict[str, Any]:
-    """Load the requested Whisper model and transcribe the given audio file."""
+    """Load the requested Whisper model and transcribe the given audio file.
+
+    Args:
+        audio_path: Absolute path to the audio sample to be transcribed.
+        model_name: Name of the Whisper checkpoint to load.
+        use_fp16: ``True`` to request half-precision inference when supported.
+
+    Returns:
+        Dict[str, Any]: Full transcription result emitted by Whisper, including
+        ``text`` and segment metadata.
+    """
     model = whisper.load_model(model_name)
     return model.transcribe(str(audio_path), fp16=use_fp16)
 
 
 def main() -> None:
-    """Entrypoint for the transcription CLI."""
+    """Execute the transcription workflow for command-line usage.
+
+    The function parses user-provided options, validates the audio source, and
+    prints the transcript text returned by Whisper.
+    """
     args = parse_arguments()
     audio_path = load_audio_path(args.audio_path)
     result = transcribe_audio(audio_path, args.model, args.fp16)
