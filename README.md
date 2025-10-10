@@ -179,6 +179,11 @@ Transcript: Welcome to inclusive education with AI.
 - Fix: Install FFmpeg; either put `ffmpeg.exe` beside `transcribe.py` or add to PATH
 - Check: `ffmpeg -version`
 
+**`FileNotFoundError: Audio file not found` when running `transcribe.py`**
+- Cause: The audio path supplied to the script does not exist.
+- Fix: Place your recording in the project directory (default: `lesson_recording.mp3`) or pass the full path, e.g. `python transcribe.py path/to/audio.mp3`.
+- Tip: Run `python transcribe.py --help` to confirm which file will be used.
+
 **`ImportError: sentencepiece not found` (SpeechT5)**
 ```powershell
 pip install sentencepiece
