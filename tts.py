@@ -9,9 +9,9 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Tuple
+import wave
 
 import numpy as np
-import soundfile as sf
 import torch
 from transformers import SpeechT5ForTextToSpeech, SpeechT5HifiGan, SpeechT5Processor
 
@@ -100,7 +100,19 @@ def save_waveform(waveform: np.ndarray, sample_rate: int, output_path: Path) -> 
         output_path: Destination path for the WAV file.
     """
 
-    sf.write(str(output_path), waveform, samplerate=sample_rate)
+    # Ensure 1-D mono float array in [-1, 1]
+    arr = np.asarray(waveform)
+    if arr.ndim > 1:
+        arr = np.squeeze(arr)
+    arr = np.clip(arr, -1.0, 1.0)
+
+    # Convert to 16-bit PCM and write with the standard library
+    pcm16 = (arr * 32767.0).astype(np.int16)
+    with wave.open(str(output_path), "wb") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)  # 16-bit PCM
+        wf.setframerate(int(sample_rate))
+        wf.writeframes(pcm16.tobytes())
 
 
 def main(text: str = DEFAULT_TEXT, output_filename: str = "output.wav") -> None:
