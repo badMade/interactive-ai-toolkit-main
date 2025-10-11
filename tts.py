@@ -15,8 +15,8 @@ import numpy as np
 
 import torch
 from transformers import (
-    SpeechT5ForTextToSpeech, 
-    SpeechT5HifiGan, 
+    SpeechT5ForTextToSpeech,
+    SpeechT5HifiGan,
     SpeechT5Processor
 )
 
@@ -131,7 +131,8 @@ def main(text: str = DEFAULT_TEXT, output_filename: str = "output.wav") -> None:
 
     processor, model, vocoder = load_speecht5_components()
     speaker_embedding = create_default_speaker_embedding()
-    waveform = synthesize_speech(text, processor, model, vocoder, speaker_embedding)
+    waveform = synthesize_speech
+    (text, processor, model, vocoder, speaker_embedding)
     save_waveform(waveform, DEFAULT_SAMPLE_RATE, Path(output_filename))
     print(f"✅ Audio saved as {output_filename}")
 
