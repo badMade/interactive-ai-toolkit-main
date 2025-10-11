@@ -12,8 +12,13 @@ from typing import Tuple
 import wave
 
 import numpy as np
+
 import torch
-from transformers import SpeechT5ForTextToSpeech, SpeechT5HifiGan, SpeechT5Processor
+from transformers import (
+    SpeechT5ForTextToSpeech, 
+    SpeechT5HifiGan, 
+    SpeechT5Processor
+)
 
 DEFAULT_TEXT = "Welcome to inclusive education with AI."
 DEFAULT_SAMPLE_RATE = 16000
