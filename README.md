@@ -33,13 +33,60 @@ without depending on proprietary cloud services.
 
 ## Prerequisites
 
-- Python **3.10 or newer**.
+- Python **3.8 or later**. Check your version with `python --version` (macOS/Linux)
+  or `py --version` (Windows).
+- Access to a command-line shell: Windows PowerShell/Windows Terminal, the macOS
+  Terminal app, or any POSIX-compatible terminal on Linux.
 - [FFmpeg](https://ffmpeg.org/) for audio decoding when running Whisper.
-- Internet access the first time you download the Whisper and SpeechT5 model
-  weights from PyPI and Hugging Face.
+- Internet access the first time you download Python dependencies and the
+  Whisper/SpeechT5 model weights. Subsequent runs work offline because the
+  packages and checkpoints are cached locally.
 
 For the best experience, use a virtual environment to isolate dependencies and
 ensure the scripts work consistently across machines.
+
+## Note on Missing Files
+
+Some directories and binaries are intentionally absent from version control so
+that each contributor can manage their own environment:
+
+- `.venv/` and other virtual environment folders live only on your machine.
+- FFmpeg binaries (for example `ffmpeg.exe`, `.dll`, and `.lib` files) remain
+  local because licenses and CPU support vary by platform.
+- Generated artifacts such as `output.wav` are created on demand and ignored by
+  Git to keep the repository lightweight.
+
+These exclusions come directly from the repository's `.gitignore`:
+
+```gitignore
+# venv & caches
+.venv/
+env/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.huggingface/
+.hf_cache/
+.cache/
+*.cache/
+*.ipynb_checkpoints
+
+# OS cruft
+.DS_Store
+Thumbs.db
+
+# Binaries / big stuff
+ffmpeg.exe
+*.dll
+*.lib
+
+# Audio outputs (keep sample input only)
+*.wav
+*.mp3
+!lesson_recording.mp3
+```
 
 ## Environment Setup
 
@@ -95,66 +142,118 @@ python -m pip install openai
 The optional client is needed only if you plan to call the hosted Whisper API as
 an alternative to local transcription.
 
-## Usage
+## Hands-On Walkthroughs
 
-### Local speech-to-text (`transcribe.py`)
+### Whisper Speech-to-Text Lab
 
-`transcribe.py` wraps the Whisper model in a small command-line tool.
+Follow these steps to produce a local transcript with Whisper:
 
-```bash
-python transcribe.py [audio_path] [--model MODEL_NAME] [--fp16]
-```
+1. Activate your virtual environment and confirm FFmpeg is available:
 
-- `audio_path` (optional): Path to the audio file you want to transcribe. The
-  default is `lesson_recording.mp3` in the project root.
-- `--model`: Whisper checkpoint to load (e.g. `tiny`, `base`, `small`, `medium`,
-  `large`). Larger models are slower but more accurate.
-- `--fp16`: Request half-precision inference if your GPU/CPU supports it.
+   ```bash
+   ffmpeg -version
+   ```
 
-Example output:
+   ![ffmpeg version output](Images/ffmpeg-version.jpg)
 
-```text
-Transcript: Welcome to inclusive education with AI.
-```
+2. Run the bundled CLI to transcribe the sample lesson:
 
-If the audio file cannot be found, the script raises a clear `FileNotFoundError`
-so that automated callers can handle the failure.
+   ```bash
+   python transcribe.py lesson_recording.mp3 --model base
+   ```
 
-### Text-to-speech (`tts.py`)
+   You can omit the audio path to fall back to the default. Expect output similar
+   to the screenshot below:
 
-`tts.py` synthesizes speech using SpeechT5.
+   ![Terminal showing the Whisper transcript](Images/whisper-transcript.jpg)
 
-```bash
-python tts.py
-```
+3. Import the helper functions in your own scripts to reuse the parsing and
+   transcription logic:
 
-The script uses a deterministic speaker embedding to keep the generated voice
-consistent between runs. By default it converts the string
-`"Welcome to inclusive education with AI."` into `output.wav`. You can import
-`main` from another module to generate custom speech programmatically:
+   ```python
+   # tutorials/run_whisper_demo.py
+   from transcribe import DEFAULT_MODEL, load_audio_path, transcribe_audio
 
-```python
-from tts import main as synthesize
+   if __name__ == "__main__":
+       audio_path = load_audio_path("lesson_recording.mp3")
+       result = transcribe_audio(audio_path, DEFAULT_MODEL, use_fp16=False)
+       print("Transcript:", result["text"])
+   ```
 
-synthesize(text="Custom narration", output_filename="narration.wav")
-```
+   Switching `DEFAULT_MODEL` to `small` or `medium` increases accuracy while
+   requiring more compute time.
+
+### SpeechT5 Text-to-Speech Lab
+
+Generate speech locally with SpeechT5 in three steps:
+
+1. Execute the CLI to synthesize the default welcome phrase:
+
+   ```bash
+   python tts.py
+   ```
+
+   ![Command-line output confirming output.wav was saved](Images/tts-saved-ok.jpg)
+
+2. The waveform is written to `output.wav`. Open it in your preferred media
+   player or file explorer to verify success:
+
+   ![File explorer showing output.wav next to other assets](Images/output-wav-explorer.jpg)
+
+3. Embed the generator in other automation or lesson builders:
+
+   ```python
+   # tutorials/generate_welcome_audio.py
+   from tts import main as synthesize
+
+   if __name__ == "__main__":
+       synthesize(text="Custom narration", output_filename="narration.wav")
+   ```
+
+   Adjust `text` and `output_filename` to produce alternate scripts or save to a
+   shared directory.
 
 ### Optional: Whisper via the OpenAI API
 
+Use the hosted Whisper API when you prefer managed infrastructure:
+
 1. Create an API key at
    [https://platform.openai.com/account/api-keys](https://platform.openai.com/account/api-keys).
-2. Export it before running a script that calls the API:
+2. Persist the key as an environment variable:
 
-   ```powershell
-   $env:OPENAI_API_KEY = "sk-..."
-   ```
+   - **Windows (PowerShell or Windows Terminal)**
+
+     ```powershell
+     setx OPENAI_API_KEY "sk-..."
+     # Restart the shell, then verify
+     echo $env:OPENAI_API_KEY
+     ```
+
+   - **Windows (Command Prompt)**
+
+     ```cmd
+     setx OPENAI_API_KEY "sk-..."
+     :: Restart the shell, then verify
+     echo %OPENAI_API_KEY%
+     ```
+
+   - **macOS / Linux (bash or zsh)**
+
+     ```bash
+     export OPENAI_API_KEY="sk-..."
+     echo "$OPENAI_API_KEY"
+     ```
+
+   Add the export line to your shell profile (for example `~/.zshrc`) to persist
+   it across new sessions.
+
+3. Install the optional client if needed:
 
    ```bash
-   export OPENAI_API_KEY="sk-..."
+   python -m pip install openai
    ```
 
-3. Install the `openai` package if you have not already (`python -m pip install openai`).
-4. Write a small helper similar to the example in this repository's history:
+4. Call the API in a short script:
 
    ```python
    from openai import OpenAI
@@ -169,8 +268,31 @@ synthesize(text="Custom narration", output_filename="narration.wav")
    print(transcript.text)
    ```
 
-Use the hosted option when you prefer managed infrastructure or need faster
-results than local hardware can provide.
+5. Verify the environment variable is visible to Python before running larger
+   jobs:
+
+   ```bash
+   python - <<'PY'
+   import os
+   print("API key detected:" if os.getenv("OPENAI_API_KEY") else "Missing OPENAI_API_KEY")
+   PY
+   ```
+
+Use the hosted option when you need faster turnaround than local hardware can
+provide or when you are deploying to infrastructure with constrained GPUs.
+
+## Quick-Setup Cheatsheet
+
+| Step | Windows | macOS | Linux |
+| --- | --- | --- | --- |
+| Check Python version | `py --version` | `python3 --version` | `python3 --version` |
+| Create virtual environment | `py -3.12 -m venv .venv` | `python3 -m venv .venv` | `python3 -m venv .venv` |
+| Activate environment | `.\.venv\Scripts\Activate` | `source .venv/bin/activate` | `source .venv/bin/activate` |
+| Upgrade pip & install deps | `python -m pip install --upgrade pip`<br>`python -m pip install -r requirements.txt` | `python -m pip install --upgrade pip`<br>`python -m pip install -r requirements.txt` | `python -m pip install --upgrade pip`<br>`python -m pip install -r requirements.txt` |
+| Verify FFmpeg availability | `ffmpeg -version` | `ffmpeg -version` | `ffmpeg -version` |
+
+Inside the activated virtual environment, `python` resolves to Python 3 on every
+platform.
 
 ## Development Guidelines
 
