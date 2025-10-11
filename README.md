@@ -37,9 +37,19 @@ without depending on proprietary cloud services.
 - [FFmpeg](https://ffmpeg.org/) for audio decoding when running Whisper.
 - Internet access the first time you download the Whisper and SpeechT5 model
   weights from PyPI and Hugging Face.
+- Optional: the `openai` Python client if you plan to call the hosted Whisper
+  API.
 
 For the best experience, use a virtual environment to isolate dependencies and
 ensure the scripts work consistently across machines.
+
+## Why Some Files Are Not Tracked
+
+- `lesson_recording.mp3` ships in the walkthrough but is intentionally excluded
+  from version control so the repository stays lightweight. Add your own lesson
+  audio in the project root when following the hands-on steps.
+- Hugging Face caches for SpeechT5 live under `~/.cache/huggingface` and do not
+  belong in source control.
 
 ## Environment Setup
 
@@ -97,6 +107,38 @@ an alternative to local transcription.
 
 ## Usage
 
+### Hands-on Walkthrough
+
+1. Create and activate a virtual environment using the commands above.
+2. Upgrade packaging tooling and install dependencies:
+
+   ```bash
+   python -m pip install --upgrade pip
+   python -m pip install -r requirements.txt
+   ```
+
+3. Install FFmpeg (download a Windows build from Gyan.dev, run `brew install
+   ffmpeg` on macOS, or `sudo apt install ffmpeg` on Debian/Ubuntu) and confirm
+   it is available via `ffmpeg -version`.
+4. Copy or record an audio sample (for example `lesson_recording.mp3`) into the
+   project root.
+5. Run offline transcription:
+
+   ```bash
+   python transcribe.py [audio_path] [--model MODEL_NAME]
+   ```
+
+   Review the printed transcript.
+6. Generate speech from text:
+
+   ```bash
+   python tts.py
+   ```
+
+   This creates `output.wav` using the deterministic SpeechT5 voice.
+7. Import the scripts into other Python programs when you need to automate
+   inclusive lesson preparation.
+
 ### Local speech-to-text (`transcribe.py`)
 
 `transcribe.py` wraps the Whisper model in a small command-line tool.
@@ -143,15 +185,33 @@ synthesize(text="Custom narration", output_filename="narration.wav")
 
 1. Create an API key at
    [https://platform.openai.com/account/api-keys](https://platform.openai.com/account/api-keys).
-2. Export it before running a script that calls the API:
+2. Configure the `OPENAI_API_KEY` environment variable.
 
-   ```powershell
-   $env:OPENAI_API_KEY = "sk-..."
-   ```
+   - Windows (PowerShell):
 
-   ```bash
-   export OPENAI_API_KEY="sk-..."
-   ```
+     ```powershell
+     setx OPENAI_API_KEY "sk-..."
+     ```
+
+     Restart the shell so the change takes effect. For the current session, you
+     can instead run:
+
+     ```powershell
+     $env:OPENAI_API_KEY = "sk-..."
+     ```
+
+   - macOS / Linux (bash or zsh):
+
+     ```bash
+     echo 'export OPENAI_API_KEY="sk-..."' >> ~/.bashrc
+     source ~/.bashrc
+     ```
+
+     To scope the key to a single terminal session, run:
+
+     ```bash
+     export OPENAI_API_KEY="sk-..."
+     ```
 
 3. Install the `openai` package if you have not already (`python -m pip install openai`).
 4. Write a small helper similar to the example in this repository's history:
@@ -171,6 +231,13 @@ synthesize(text="Custom narration", output_filename="narration.wav")
 
 Use the hosted option when you prefer managed infrastructure or need faster
 results than local hardware can provide.
+
+## Quick Setup Cheatsheet
+
+- `python -m venv .venv` and activate it for your platform.
+- `python -m pip install --upgrade pip`
+- `python -m pip install -r requirements.txt`
+- Confirm `ffmpeg -version` works, then run `python transcribe.py` or `python tts.py`.
 
 ## Development Guidelines
 
