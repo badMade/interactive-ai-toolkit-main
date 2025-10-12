@@ -1,8 +1,8 @@
 import unittest
 from unittest.mock import patch, MagicMock
 from pathlib import Path
-import os
 
+import transcribe
 from transcribe import load_audio_path, transcribe_audio
 
 class TestTranscribe(unittest.TestCase):
@@ -50,6 +50,15 @@ class TestTranscribe(unittest.TestCase):
 
         # Assert the result
         self.assertEqual(result["text"], "This is a test transcript.")
+
+    @patch("transcribe.import_module", side_effect=ModuleNotFoundError("No module named 'whisper'"))
+    def test_load_whisper_module_missing_dependency(self, mock_import_module):
+        """Provides clearer guidance when Whisper is unavailable."""
+
+        with self.assertRaisesRegex(ModuleNotFoundError, "openai-whisper"):
+            transcribe.load_whisper_module()
+
+        mock_import_module.assert_called_once_with("whisper")
 
 if __name__ == "__main__":
     unittest.main()

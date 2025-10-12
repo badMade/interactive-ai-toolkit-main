@@ -6,10 +6,27 @@ file and model are configured for local experimentation but can be overridden
 on the command line.
 """
 from argparse import ArgumentParser, Namespace
+from importlib import import_module
 from pathlib import Path
 from typing import Any, Dict
 
-import whisper
+
+MISSING_WHISPER_MESSAGE = (
+    "OpenAI Whisper is not installed. Install it with 'pip install openai-whisper' "
+    "or run setup_env.py to configure the environment."
+)
+
+
+def load_whisper_module():
+    """Import the Whisper module with a helpful error if it is unavailable."""
+
+    try:
+        return import_module("whisper")
+    except ModuleNotFoundError as exc:
+        raise ModuleNotFoundError(MISSING_WHISPER_MESSAGE) from exc
+
+
+whisper = load_whisper_module()
 
 DEFAULT_AUDIO = "lesson_recording.mp3"
 DEFAULT_MODEL = "base"
