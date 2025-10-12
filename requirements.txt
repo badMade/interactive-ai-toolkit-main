@@ -4,3 +4,4 @@ torch
 soundfile
 sentencepiece
 numpy
+pytest

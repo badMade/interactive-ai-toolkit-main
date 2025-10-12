@@ -32,6 +32,15 @@ class SetupError(RuntimeError):
 MINIMUM_SUPPORTED_PYTHON = (3, 10)
 
 
+DEFAULT_VALIDATION_PACKAGES: tuple[str, ...] = (
+    "torch",
+    "transformers",
+    "soundfile",
+    "whisper",
+    "pytest",
+)
+
+
 def ensure_supported_python() -> None:
     """Fail fast when running on an unsupported Python interpreter."""
 
@@ -233,7 +242,7 @@ def main() -> int:
         install_requirements(venv_python, requirements_path)
         verify_installation(
             venv_python,
-            packages=("torch", "transformers", "soundfile", "whisper"),
+            packages=DEFAULT_VALIDATION_PACKAGES,
         )
     except SetupError as error:
         logging.error(colorize(f"Environment setup failed: {error}", "red"))

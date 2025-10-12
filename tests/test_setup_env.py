@@ -136,36 +136,36 @@ def test_ensure_ffmpeg_available_missing_binary(monkeypatch) -> None:
 
 
 def test_verify_installation_success(tmp_path: Path) -> None:
+    packages = setup_env.DEFAULT_VALIDATION_PACKAGES
+    package_responses = [(f"{name} 1.0.0", "") for name in packages]
     runner = FakeRunner(
         responses=[
             ("Python 3.11.0", ""),
             ("pip 23.0", ""),
-            ("1.0.0", ""),
-            ("2.0.0", ""),
-            ("0.12.1", ""),
-            ("202311", ""),
+            *package_responses,
         ]
     )
     setup_env.verify_installation(
         tmp_path / ".venv/bin/python",
-        packages=("torch", "transformers", "soundfile", "whisper"),
+        packages=packages,
         runner=runner,
     )
-    assert len(runner.calls) == 6
+    assert len(runner.calls) == 2 + len(packages)
 
 
 def test_verify_installation_failure(tmp_path: Path) -> None:
+    packages = ("torch", "transformers")
     runner = FakeRunner(
         responses=[
             ("Python 3.11.0", ""),
             ("pip 23.0", ""),
-            ("1.0.0", ""),
+            *[(f"{name} 1.0.0", "") for name in packages],
         ],
         fail_on=3,
     )
     with pytest.raises(setup_env.SetupError):
         setup_env.verify_installation(
             tmp_path / ".venv/bin/python",
-            packages=("torch", "transformers"),
+            packages=packages,
             runner=runner,
         )
