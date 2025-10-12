@@ -120,9 +120,14 @@ def ensure_ffmpeg_available(*, runner: CommandRunner | None = None) -> None:
                 "run `winget install Gyan.FFmpeg`."
             )
         elif sys.platform == "darwin":
-            guidance = "Install FFmpeg via Homebrew using `brew install ffmpeg`."
+            guidance = (
+                "Install FFmpeg via Homebrew using `brew install ffmpeg`."
+            )
         else:
-            guidance = "Install FFmpeg with your package manager, e.g. `sudo apt install ffmpeg`."
+            guidance = (
+                "Install FFmpeg with your package manager, "
+                "e.g. `sudo apt install ffmpeg`."
+            )
         raise SetupError(
             "FFmpeg is required but was not detected. "
             f"{guidance}"
