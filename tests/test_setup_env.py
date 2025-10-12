@@ -1,3 +1,9 @@
+"""Test suite for the setup_env module.
+
+This module contains unit tests for environment setup functionality including
+requirements validation, Python version checks, virtualenv creation, dependency
+installation, FFmpeg availability checks, and installation verification.
+"""
 from __future__ import annotations
 
 import sys
@@ -11,7 +17,16 @@ import setup_env
 
 
 class FakeRunner:
-    def __init__(self, responses: list[tuple[str, str]] | None = None, fail_on: int | None = None):
+    """Mock subprocess runner for testing command execution.
+
+    This class simulates subprocess.run() behavior with configurable responses
+    and optional failure injection for testing error handling.
+    """
+    def __init__(
+        self,
+        responses: list[tuple[str, str]] | None = None,
+        fail_on: int | None = None,
+    ):
         self.responses = responses or [("", "")] * 10
         self.fail_on = fail_on
         self.calls: list[tuple[list[str], bool]] = []
@@ -21,17 +36,23 @@ class FakeRunner:
             raise subprocess.CalledProcessError(returncode=1, cmd=command)
         self.calls.append((command, capture_output))
         stdout, stderr = self.responses.pop(0)
-        return SimpleNamespace(stdout=stdout, stderr=stderr)
+        return subprocess.CompletedProcess(
+            args=command,
+            returncode=0,
+            stdout=stdout,
+            stderr=stderr,
+        )
 
 
-@pytest.fixture()
-def requirements_file(tmp_path: Path) -> Path:
+@pytest.fixture(name="requirements_file")
+def _requirements_file(tmp_path: Path) -> Path:
     path = tmp_path / "requirements.txt"
     path.write_text("numpy\n")
     return path
 
 
 def test_ensure_requirements_file_missing(tmp_path: Path) -> None:
+    """Test that ensure_requirements_file raises SetupError when file is missing."""
     with pytest.raises(setup_env.SetupError):
         setup_env.ensure_requirements_file(tmp_path / "requirements.txt")
 
@@ -53,7 +74,9 @@ def test_ensure_supported_python_raises_for_older_runtime(monkeypatch) -> None:
     assert "Python 3.10 or newer is required" in str(error.value)
 
 
-def test_ensure_supported_python_accepts_supported_runtime(monkeypatch) -> None:
+def test_ensure_supported_python_accepts_supported_runtime(
+    monkeypatch,
+) -> None:
     monkeypatch.setattr(
         setup_env.sys,
         "version_info",
@@ -85,16 +108,32 @@ def test_get_venv_python_path_posix(tmp_path: Path) -> None:
 
 
 def test_get_venv_python_path_windows(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(setup_env.os, "name", "nt", raising=False)
+    monkeypatch.setattr(
+        setup_env.os,
+        "name",
+        "nt",
+        raising=False,
+    )
     path = setup_env.get_venv_python_path(tmp_path / ".venv")
     assert path.as_posix().endswith(".venv/Scripts/python.exe")
 
 
-def test_install_requirements_runs_expected_commands(requirements_file: Path) -> None:
+def test_install_requirements_runs_expected_commands(
+    requirements_file: Path,
+) -> None:
     runner = FakeRunner()
-    setup_env.install_requirements(Path("/tmp/python"), requirements_file, runner=runner)
-    assert runner.calls[0][0][:4] == ["/tmp/python", "-m", "pip", "install"]
-    assert runner.calls[1][0][:5] == ["/tmp/python", "-m", "pip", "install", "-r"]
+    setup_env.install_requirements(
+        Path("/tmp/python"), requirements_file, runner=runner
+    )
+    assert runner.calls[0][0][:4] == ["/tmp/python",
+                                      "-m",
+                                      "pip",
+                                      "install"]
+    assert runner.calls[1][0][:5] == ["/tmp/python",
+                                      "-m",
+                                      "pip",
+                                      "install",
+                                      "-r"]
 
 
 def test_ensure_ffmpeg_available_success() -> None:
@@ -111,7 +150,10 @@ def test_ensure_ffmpeg_available_success() -> None:
         ("posix", "linux", "apt install ffmpeg"),
     ],
 )
-def test_ensure_ffmpeg_available_failure(monkeypatch, os_name, sys_platform, expected) -> None:
+def test_ensure_ffmpeg_available_failure(monkeypatch,
+                                         os_name,
+                                         sys_platform,
+                                         expected) -> None:
     runner = FakeRunner(fail_on=0)
     monkeypatch.setattr(setup_env.os, "name", os_name, raising=False)
     monkeypatch.setattr(setup_env.sys, "platform", sys_platform, raising=False)
