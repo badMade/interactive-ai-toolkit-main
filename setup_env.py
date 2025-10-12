@@ -27,6 +27,22 @@ class SetupError(RuntimeError):
     """Raised when the environment setup cannot be completed."""
 
 
+MINIMUM_SUPPORTED_PYTHON = (3, 10)
+
+
+def ensure_supported_python() -> None:
+    """Fail fast when running on an unsupported Python interpreter."""
+
+    current = sys.version_info
+    required_major, required_minor = MINIMUM_SUPPORTED_PYTHON
+    if (current.major, current.minor) < (required_major, required_minor):
+        raise SetupError(
+            "Python 3.10 or newer is required. "
+            f"Detected {current.major}.{current.minor}.{current.micro}. "
+            "Please install or launch Python 3 before continuing."
+        )
+
+
 ANSI_COLORS = {
     "green": "\033[92m",
     "red": "\033[91m",
@@ -155,6 +171,7 @@ def verify_installation(
 
 def main() -> int:
     """Entry point used when executing the setup script from the CLI."""
+    ensure_supported_python()
     configure_logging()
     project_root = Path(__file__).resolve().parent
     venv_path = project_root / ".venv"

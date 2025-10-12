@@ -41,6 +41,28 @@ def test_ensure_requirements_file_success(requirements_file: Path) -> None:
     assert resolved == requirements_file
 
 
+def test_ensure_supported_python_raises_for_older_runtime(monkeypatch) -> None:
+    monkeypatch.setattr(
+        setup_env.sys,
+        "version_info",
+        SimpleNamespace(major=3, minor=9, micro=18),
+        raising=False,
+    )
+    with pytest.raises(setup_env.SetupError) as error:
+        setup_env.ensure_supported_python()
+    assert "Python 3.10 or newer is required" in str(error.value)
+
+
+def test_ensure_supported_python_accepts_supported_runtime(monkeypatch) -> None:
+    monkeypatch.setattr(
+        setup_env.sys,
+        "version_info",
+        SimpleNamespace(major=3, minor=11, micro=2),
+        raising=False,
+    )
+    setup_env.ensure_supported_python()
+
+
 def test_create_virtualenv_skips_when_existing(tmp_path: Path) -> None:
     venv_path = tmp_path / ".venv"
     venv_path.mkdir()
