@@ -1,9 +1,15 @@
+"""Unit tests for the tts module.
+
+This module contains test cases for text-to-speech functionality,
+including SpeechT5 model loading, speaker embeddings, and audio synthesis.
+"""
 import unittest
 from unittest.mock import patch, MagicMock
-import torch
-import numpy as np
 from pathlib import Path
 import wave
+
+import torch
+import numpy as np
 
 from tts import (
     create_default_speaker_embedding,
@@ -12,7 +18,9 @@ from tts import (
     synthesize_speech,
 )
 
+
 class TestTTS(unittest.TestCase):
+    """Test suite for text-to-speech synthesis functions."""
 
     def setUp(self):
         self.output_path = Path("test_output.wav")
@@ -22,14 +30,19 @@ class TestTTS(unittest.TestCase):
             self.output_path.unlink()
 
     def test_create_default_speaker_embedding(self):
-        """Tests that the speaker embedding is deterministic and has the correct shape."""
+        """
+        Tests that the speaker embedding is deterministic
+        and has the correct shape.
+        """
         embedding1 = create_default_speaker_embedding(seed=42)
         embedding2 = create_default_speaker_embedding(seed=42)
         self.assertTrue(torch.equal(embedding1, embedding2))
         self.assertEqual(embedding1.shape, (1, 512))
 
     def test_save_waveform(self):
-        """Tests that the waveform is saved correctly as a WAV file."""
+        """
+        Tests that the waveform is saved correctly as a WAV file.
+        """
         sample_rate = 16000
         waveform = np.sin(np.linspace(0, 440 * 2 * np.pi, sample_rate))
 
@@ -45,15 +58,27 @@ class TestTTS(unittest.TestCase):
     @patch("tts.SpeechT5Processor")
     @patch("tts.SpeechT5ForTextToSpeech")
     @patch("tts.SpeechT5HifiGan")
-    def test_load_speecht5_components(self, mock_vocoder, mock_model, mock_processor):
-        """Tests that the SpeechT5 components are loaded with the correct identifiers."""
+    def test_load_speecht5_components(
+        self, mock_vocoder, mock_model, mock_processor
+    ):
+        """
+        Tests that the SpeechT5 components are loaded with
+        the correct identifiers.
+        """
         load_speecht5_components("test_model_id", "test_vocoder_id")
-        mock_processor.from_pretrained.assert_called_with("test_model_id")
+        mock_processor.from_pretrained.assert_called_with(
+            "test_model_id"
+        )
         mock_model.from_pretrained.assert_called_with("test_model_id")
-        mock_vocoder.from_pretrained.assert_called_with("test_vocoder_id")
+        mock_vocoder.from_pretrained.assert_called_with(
+            "test_vocoder_id"
+        )
 
     def test_synthesize_speech(self):
-        """Tests that the speech synthesis function calls the model correctly."""
+        """
+        Tests that the speech synthesis function calls
+        the model correctly.
+        """
         mock_processor = MagicMock()
         mock_model = MagicMock()
         mock_vocoder = MagicMock()
@@ -70,9 +95,12 @@ class TestTTS(unittest.TestCase):
             mock_speaker_embedding,
         )
 
-        mock_processor.assert_called_with(text="test text", return_tensors="pt")
+        mock_processor.assert_called_with(
+            text="test text", return_tensors="pt"
+        )
         mock_model.generate_speech.assert_called_once()
         self.assertIsInstance(waveform, np.ndarray)
+
 
 if __name__ == "__main__":
     unittest.main()
