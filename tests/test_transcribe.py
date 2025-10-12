@@ -1,3 +1,8 @@
+"""Unit tests for the transcribe module.
+
+This module contains test cases for audio transcription functionality,
+including file loading and Whisper model integration.
+"""
 import unittest
 from unittest.mock import patch, MagicMock
 from pathlib import Path
@@ -7,6 +12,7 @@ from transcribe import load_audio_path, transcribe_audio
 
 
 class TestTranscribe(unittest.TestCase):
+    """Test suite for audio transcription functions."""
 
     def setUp(self):
         # Create a dummy file for testing
