@@ -19,11 +19,12 @@ def parse_arguments() -> Namespace:
     """Parse command-line options for the transcription script.
 
     Returns:
-        Namespace: Parsed arguments containing the ``audio_path`` of the file to
-        transcribe, the ``model`` name to load, and the ``fp16`` flag that
+        Namespace: Parsed arguments containing the ``audio_path`` of the file
+        to transcribe, the ``model`` name to load, and the ``fp16`` flag that
         indicates whether half-precision inference should be attempted.
     """
-    parser = ArgumentParser(description="Transcribe an audio file with Whisper.")
+    parser = ArgumentParser(
+        description="Transcribe an audio file with Whisper.")
     parser.add_argument(
         "audio_path",
         nargs="?",
@@ -61,7 +62,9 @@ def load_audio_path(raw_path: str) -> Path:
     return audio_path
 
 
-def transcribe_audio(audio_path: Path, model_name: str, use_fp16: bool) -> Dict[str, Any]:
+def transcribe_audio(audio_path: Path,
+                     model_name: str,
+                     use_fp16: bool) -> Dict[str, Any]:
     """Load the requested Whisper model and transcribe the given audio file.
 
     Args:

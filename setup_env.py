@@ -1,4 +1,6 @@
-"""Utility script to provision a dedicated Python environment for the project."""
+"""
+Utility script to provision a dedicated Python environment for the project.
+"""
 from __future__ import annotations
 
 import logging
@@ -94,7 +96,8 @@ def ensure_requirements_file(requirements_path: Path) -> Path:
     """Ensure that *requirements_path* exists before continuing."""
     if not requirements_path.is_file():
         raise SetupError(
-            "Could not find requirements.txt. Please add it before running setup."
+            "Could not find requirements.txt. "
+            "Please add it before running setup."
         )
     logging.info("Using requirements file at %s", requirements_path)
     return requirements_path
@@ -129,10 +132,20 @@ def install_requirements(
 ) -> None:
     """Install project dependencies into the virtual environment."""
     logging.info("Upgrading pip inside the virtual environment")
-    run_command([str(venv_python), "-m", "pip", "install", "--upgrade", "pip"], runner=runner)
+    run_command([str(venv_python),
+                 "-m",
+                 "pip",
+                 "install",
+                 "--upgrade",
+                 "pip"], runner=runner)
     logging.info("Installing dependencies from requirements.txt")
     run_command(
-        [str(venv_python), "-m", "pip", "install", "-r", str(requirements_path)],
+        [str(venv_python),
+         "-m",
+         "pip",
+         "install",
+         "-r",
+         str(requirements_path)],
         runner=runner,
     )
 
@@ -143,8 +156,11 @@ def verify_installation(
     *,
     runner: CommandRunner | None = None,
 ) -> None:
-    """Validate the new environment by reporting toolchain and package versions."""
-    python_version = run_command([str(venv_python), "--version"], capture_output=True, runner=runner)
+    """
+    Validate the new environment by reporting toolchain and package versions.
+    """
+    python_version = run_command([str(venv_python), "--version"],
+                                 capture_output=True, runner=runner)
     logging.info("Python interpreter: %s", python_version)
 
     pip_version = run_command(
@@ -188,14 +204,17 @@ def main() -> int:
         )
     except SetupError as error:
         logging.error(colorize(f"Environment setup failed: {error}", "red"))
-        print(colorize("Environment setup failed. See log output above for details.", "red"))
+        print(colorize("Environment setup failed. "
+                       "See log output above for details.", "red"))
         return 1
 
     print(colorize("Environment setup completed successfully!", "green"))
     print("Activate the virtual environment with:")
     print(colorize(f"  macOS/Linux: source {venv_path}/bin/activate", "blue"))
-    print(colorize(f"  Windows PowerShell: {venv_path}\\Scripts\\Activate.ps1", "yellow"))
-    print(colorize(f"  Windows Command Prompt: {venv_path}\\Scripts\\activate.bat", "yellow"))
+    print(colorize("  Windows PowerShell: "
+                   f"{venv_path}\\Scripts\\Activate.ps1", "yellow"))
+    print(colorize("  Windows Command Prompt: "
+                   f"{venv_path}\\Scripts\\activate.bat", "yellow"))
     print("To deactivate, run 'deactivate'.")
     return 0
 

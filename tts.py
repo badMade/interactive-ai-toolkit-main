@@ -96,7 +96,9 @@ def synthesize_speech(
     return waveform.numpy()
 
 
-def save_waveform(waveform: np.ndarray, sample_rate: int, output_path: Path) -> None:
+def save_waveform(waveform: np.ndarray,
+                  sample_rate: int,
+                  output_path: Path) -> None:
     """Persist a generated waveform to disk as a WAV file.
 
     Args:
