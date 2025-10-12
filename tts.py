@@ -122,7 +122,10 @@ def save_waveform(waveform: np.ndarray,
         wf.writeframes(pcm16.tobytes())
 
 
-def main(text: str = DEFAULT_TEXT, output_filename: str = "output.wav") -> None:
+def main(
+    text: str = DEFAULT_TEXT,
+    output_filename: str = "output.wav",
+) -> None:
     """Generate a speech sample and save it to ``output_filename``.
 
     Args:
