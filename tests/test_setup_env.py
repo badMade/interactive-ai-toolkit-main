@@ -103,7 +103,7 @@ def test_create_virtualenv_skips_when_existing(tmp_path: Path) -> None:
     (venv_path / "pyvenv.cfg").write_text("")
     runner = FakeRunner()
     setup_env.create_virtualenv(venv_path, runner=runner)
-    assert not runner.calls
+    assert not runner.calls, "Runner should not be called when venv exists"
 
 
 def test_create_virtualenv_invokes_runner(tmp_path: Path) -> None:
