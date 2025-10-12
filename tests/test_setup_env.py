@@ -32,7 +32,8 @@ class FakeRunner:
         self.calls: list[tuple[list[str], bool]] = []
 
     def __call__(self, command, *, check, text, capture_output):
-        """Execute a fake subprocess command with configurable response or failure."""
+        """Execute a fake subprocess command with
+        configurable response or failure."""
         if self.fail_on is not None and len(self.calls) == self.fail_on:
             raise subprocess.CalledProcessError(returncode=1, cmd=command)
         self.calls.append((command, capture_output))
@@ -54,19 +55,22 @@ def _requirements_file(tmp_path: Path) -> Path:
 
 
 def test_ensure_requirements_file_missing(tmp_path: Path) -> None:
-    """Test that ensure_requirements_file raises SetupError when file is missing."""
+    """Test that ensure_requirements_file raises
+    SetupError when file is missing."""
     with pytest.raises(setup_env.SetupError):
         setup_env.ensure_requirements_file(tmp_path / "requirements.txt")
 
 
 def test_ensure_requirements_file_success(requirements_file: Path) -> None:
-    """Test that ensure_requirements_file successfully resolves an existing file."""
+    """Test that ensure_requirements_files
+    uccessfully resolves an existing file."""
     resolved = setup_env.ensure_requirements_file(requirements_file)
     assert resolved == requirements_file
 
 
 def test_ensure_supported_python_raises_for_older_runtime(monkeypatch) -> None:
-    """Test that ensure_supported_python raises SetupError for Python < 3.10."""
+    """Test that ensure_supported_python raises
+    SetupError for Python < 3.10."""
     monkeypatch.setattr(
         setup_env.sys,
         "version_info",
@@ -92,17 +96,19 @@ def test_ensure_supported_python_accepts_supported_runtime(
 
 
 def test_create_virtualenv_skips_when_existing(tmp_path: Path) -> None:
-    """Test that create_virtualenv skips creation when virtualenv already exists."""
+    """Test that create_virtualenv skips creation when
+    virtualenv already exists."""
     venv_path = tmp_path / ".venv"
     venv_path.mkdir()
     (venv_path / "pyvenv.cfg").write_text("")
     runner = FakeRunner()
     setup_env.create_virtualenv(venv_path, runner=runner)
-    assert runner.calls == []
+    assert not runner.calls
 
 
 def test_create_virtualenv_invokes_runner(tmp_path: Path) -> None:
-    """Test that create_virtualenv invokes the runner with correct venv command."""
+    """Test that create_virtualenv invokes the runner
+    with correct venv command."""
     venv_path = tmp_path / ".venv"
     runner = FakeRunner()
     setup_env.create_virtualenv(venv_path, runner=runner)
@@ -110,13 +116,15 @@ def test_create_virtualenv_invokes_runner(tmp_path: Path) -> None:
 
 
 def test_get_venv_python_path_posix(tmp_path: Path) -> None:
-    """Test that get_venv_python_path returns correct path for POSIX systems."""
+    """Test that get_venv_python_path returns correct path
+    for POSIX systems."""
     path = setup_env.get_venv_python_path(tmp_path / ".venv")
     assert path.as_posix().endswith(".venv/bin/python")
 
 
 def test_get_venv_python_path_windows(monkeypatch, tmp_path: Path) -> None:
-    """Test that get_venv_python_path returns correct path for Windows systems."""
+    """Test that get_venv_python_path returns correct path
+    for Windows systems."""
     monkeypatch.setattr(
         setup_env.os,
         "name",
@@ -130,7 +138,8 @@ def test_get_venv_python_path_windows(monkeypatch, tmp_path: Path) -> None:
 def test_install_requirements_runs_expected_commands(
     requirements_file: Path,
 ) -> None:
-    """Test that install_requirements runs pip install and pip install -r commands."""
+    """Test that install_requirements runs pip install and
+    pip install -r commands."""
     runner = FakeRunner()
     setup_env.install_requirements(
         Path("/tmp/python"), requirements_file, runner=runner
@@ -165,7 +174,8 @@ def test_ensure_ffmpeg_available_failure(monkeypatch,
                                          os_name,
                                          sys_platform,
                                          expected) -> None:
-    """Test that ensure_ffmpeg_available provides platform-specific install guidance."""
+    """Test that ensure_ffmpeg_available provides
+    platform-specific install guidance."""
     runner = FakeRunner(fail_on=0)
     monkeypatch.setattr(setup_env.os, "name", os_name, raising=False)
     monkeypatch.setattr(setup_env.sys, "platform", sys_platform, raising=False)
@@ -175,7 +185,8 @@ def test_ensure_ffmpeg_available_failure(monkeypatch,
 
 
 def test_ensure_ffmpeg_available_missing_binary(monkeypatch) -> None:
-    """Test that ensure_ffmpeg_available handles FileNotFoundError appropriately."""
+    """Test that ensure_ffmpeg_available handles
+    FileNotFoundError appropriately."""
     def missing_runner(command, *, check, text, capture_output):
         raise FileNotFoundError("ffmpeg not found")
 
@@ -210,7 +221,8 @@ def test_verify_installation_success(tmp_path: Path) -> None:
 
 
 def test_verify_installation_failure(tmp_path: Path) -> None:
-    """Test that verify_installation raises SetupError when package check fails."""
+    """Test that verify_installation raises
+    SetupError when package check fails."""
     packages = ("torch", "transformers")
     runner = FakeRunner(
         responses=[
