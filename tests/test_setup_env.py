@@ -120,6 +120,21 @@ def test_ensure_ffmpeg_available_failure(monkeypatch, os_name, sys_platform, exp
     assert expected in str(error.value)
 
 
+def test_ensure_ffmpeg_available_missing_binary(monkeypatch) -> None:
+    def missing_runner(command, *, check, text, capture_output):
+        raise FileNotFoundError("ffmpeg not found")
+
+    monkeypatch.setattr(setup_env.os, "name", "posix", raising=False)
+    monkeypatch.setattr(setup_env.sys, "platform", "linux", raising=False)
+
+    with pytest.raises(setup_env.SetupError) as error:
+        setup_env.ensure_ffmpeg_available(runner=missing_runner)
+
+    message = str(error.value)
+    assert "FFmpeg is required but was not detected" in message
+    assert "apt install ffmpeg" in message
+
+
 def test_verify_installation_success(tmp_path: Path) -> None:
     runner = FakeRunner(
         responses=[

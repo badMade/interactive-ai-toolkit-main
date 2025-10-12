@@ -84,6 +84,9 @@ def run_command(
             text=True,
             capture_output=capture_output,
         )
+    except FileNotFoundError as exc:
+        missing = command[0] if command else "command"
+        raise SetupError(f"Required command not found: {missing}") from exc
     except subprocess.CalledProcessError as exc:
         raise SetupError(f"Command failed: {' '.join(command)}") from exc
     if capture_output:
