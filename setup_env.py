@@ -92,6 +92,35 @@ def run_command(
     return ""
 
 
+def ensure_ffmpeg_available(*, runner: CommandRunner | None = None) -> None:
+    """Verify that FFmpeg is available on the host system."""
+
+    try:
+        version_output = run_command(
+            ["ffmpeg", "-version"],
+            capture_output=True,
+            runner=runner,
+        )
+    except SetupError as error:
+        if os.name == "nt":
+            guidance = (
+                "Install FFmpeg from https://ffmpeg.org/download.html or "
+                "run `winget install Gyan.FFmpeg`."
+            )
+        elif sys.platform == "darwin":
+            guidance = "Install FFmpeg via Homebrew using `brew install ffmpeg`."
+        else:
+            guidance = "Install FFmpeg with your package manager, e.g. `sudo apt install ffmpeg`."
+        raise SetupError(
+            "FFmpeg is required but was not detected. "
+            f"{guidance}"
+        ) from error
+
+    if version_output:
+        first_line = version_output.splitlines()[0]
+        logging.info("FFmpeg detected: %s", first_line)
+
+
 def ensure_requirements_file(requirements_path: Path) -> Path:
     """Ensure that *requirements_path* exists before continuing."""
     if not requirements_path.is_file():
@@ -195,6 +224,7 @@ def main() -> int:
 
     try:
         ensure_requirements_file(requirements_path)
+        ensure_ffmpeg_available()
         create_virtualenv(venv_path)
         venv_python = get_venv_python_path(venv_path)
         install_requirements(venv_python, requirements_path)

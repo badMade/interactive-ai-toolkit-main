@@ -97,6 +97,29 @@ def test_install_requirements_runs_expected_commands(requirements_file: Path) ->
     assert runner.calls[1][0][:5] == ["/tmp/python", "-m", "pip", "install", "-r"]
 
 
+def test_ensure_ffmpeg_available_success() -> None:
+    runner = FakeRunner(responses=[("ffmpeg version 6.1", "")])
+    setup_env.ensure_ffmpeg_available(runner=runner)
+    assert runner.calls == [(["ffmpeg", "-version"], True)]
+
+
+@pytest.mark.parametrize(
+    "os_name, sys_platform, expected",
+    [
+        ("nt", "win32", "winget install"),
+        ("posix", "darwin", "brew install ffmpeg"),
+        ("posix", "linux", "apt install ffmpeg"),
+    ],
+)
+def test_ensure_ffmpeg_available_failure(monkeypatch, os_name, sys_platform, expected) -> None:
+    runner = FakeRunner(fail_on=0)
+    monkeypatch.setattr(setup_env.os, "name", os_name, raising=False)
+    monkeypatch.setattr(setup_env.sys, "platform", sys_platform, raising=False)
+    with pytest.raises(setup_env.SetupError) as error:
+        setup_env.ensure_ffmpeg_available(runner=runner)
+    assert expected in str(error.value)
+
+
 def test_verify_installation_success(tmp_path: Path) -> None:
     runner = FakeRunner(
         responses=[
