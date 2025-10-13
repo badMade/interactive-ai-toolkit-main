@@ -3,8 +3,10 @@
 This module contains test cases for audio transcription functionality,
 including file loading and Whisper model integration.
 """
+import io
 import sys
 import unittest
+from argparse import Namespace
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -88,6 +90,31 @@ class TestTranscribe(unittest.TestCase):
             transcribe.load_whisper_module()
 
         mock_import_module.assert_called_once_with("whisper")
+
+    @patch("transcribe.load_audio_path")
+    @patch("transcribe.parse_arguments")
+    def test_main_reports_missing_whisper(self,
+                                          mock_parse_arguments,
+                                          mock_load_audio_path):
+        """Ensures the CLI exits cleanly when Whisper is unavailable."""
+
+        args = Namespace(audio_path="audio.mp3", model="base", fp16=False)
+        mock_parse_arguments.return_value = args
+        mock_load_audio_path.return_value = Path("audio.mp3")
+
+        error = ModuleNotFoundError(transcribe.MISSING_WHISPER_MESSAGE,
+                                    name="whisper")
+
+        with patch("transcribe.transcribe_audio", side_effect=error):
+            with patch("sys.stderr", new_callable=io.StringIO) as stderr:
+                with self.assertRaises(SystemExit) as exit_info:
+                    transcribe.main()
+
+        self.assertEqual(exit_info.exception.code, 1)
+        self.assertEqual(
+            stderr.getvalue().strip(),
+            transcribe.MISSING_WHISPER_MESSAGE,
+        )
 
 
 if __name__ == "__main__":

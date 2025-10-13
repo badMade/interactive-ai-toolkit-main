@@ -5,9 +5,11 @@ argument parsing and transcription logic programmatically. The default audio
 file and model are configured for local experimentation but can be overridden
 on the command line.
 """
+import sys
 from argparse import ArgumentParser, Namespace
 from importlib import import_module
 from pathlib import Path
+from types import ModuleType
 from typing import Any, Dict
 
 
@@ -18,16 +20,26 @@ MISSING_WHISPER_MESSAGE = (
 )
 
 
-def load_whisper_module():
+whisper: ModuleType | None = None
+_cached_whisper: ModuleType | None = None
+
+
+def load_whisper_module() -> ModuleType:
     """Import the Whisper module with a helpful error if it is unavailable."""
 
+    global whisper, _cached_whisper
+
+    if _cached_whisper is not None:
+        return _cached_whisper
+
     try:
-        return import_module("whisper")
+        module = import_module("whisper")
     except ModuleNotFoundError as exc:
         raise ModuleNotFoundError(MISSING_WHISPER_MESSAGE) from exc
 
-
-whisper = load_whisper_module()
+    whisper = module
+    _cached_whisper = module
+    return module
 
 DEFAULT_AUDIO = "lesson_recording.mp3"
 DEFAULT_MODEL = "base"
@@ -94,8 +106,24 @@ def transcribe_audio(audio_path: Path,
         Dict[str, Any]: Full transcription result emitted by Whisper, including
         ``text`` and segment metadata.
     """
-    model = whisper.load_model(model_name)
+    module = whisper if whisper is not None else load_whisper_module()
+    model = module.load_model(model_name)
     return model.transcribe(str(audio_path), fp16=use_fp16)
+
+
+def _missing_whisper_message(exc: ModuleNotFoundError) -> str | None:
+    """Return a helpful message when Whisper is not installed."""
+
+    message = str(exc).strip()
+    current: BaseException | None = exc
+    while current is not None:
+        is_missing_whisper = isinstance(current, ModuleNotFoundError) and getattr(
+            current, "name", None
+        ) == "whisper"
+        if is_missing_whisper:
+            return message or MISSING_WHISPER_MESSAGE
+        current = current.__cause__
+    return None
 
 
 def main() -> None:
@@ -106,7 +134,14 @@ def main() -> None:
     """
     args = parse_arguments()
     audio_path = load_audio_path(args.audio_path)
-    result = transcribe_audio(audio_path, args.model, args.fp16)
+    try:
+        result = transcribe_audio(audio_path, args.model, args.fp16)
+    except ModuleNotFoundError as exc:
+        whisper_message = _missing_whisper_message(exc)
+        if whisper_message is None:
+            raise
+        print(whisper_message, file=sys.stderr)
+        raise SystemExit(1) from None
     print("Transcript:", result["text"])
 
 
