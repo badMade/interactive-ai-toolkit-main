@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib
 import os
 import subprocess
 from pathlib import Path
@@ -98,3 +99,32 @@ def test_ensure_virtual_environment_noop_inside(monkeypatch, tmp_path: Path) -> 
     monkeypatch.setattr(run.subprocess, "run", fail_run)
 
     run.ensure_virtual_environment()
+
+
+def test_main_reports_missing_whisper(monkeypatch, capsys) -> None:
+    monkeypatch.setattr(run, "ensure_virtual_environment", lambda: None)
+
+    message = (
+        "OpenAI Whisper is not installed. Install it with 'pip install openai-whisper' "
+        "or run setup_env.py to configure the environment."
+    )
+
+    real_import_module = importlib.import_module
+
+    def fake_import_module(name: str):
+        if name == "transcribe":
+            cause = ModuleNotFoundError("No module named 'whisper'", name="whisper")
+            raise ModuleNotFoundError(message) from cause
+        return real_import_module(name)
+
+    monkeypatch.setattr(run.importlib, "import_module", fake_import_module)
+
+    with pytest.raises(SystemExit) as exc_info:
+        run.main()
+
+    assert exc_info.value.code == 1
+
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err.strip() == message
+    assert "Traceback" not in captured.err
