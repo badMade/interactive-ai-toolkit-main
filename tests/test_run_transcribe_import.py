@@ -5,7 +5,7 @@ import pytest
 import run
 
 
-def test_load_transcribe_module_preserves_dependency_error(monkeypatch) -> None:
+def test_load_transcribe_module_reports_missing_whisper(monkeypatch, capsys) -> None:
     friendly_message = (
         "OpenAI Whisper is not installed. Install it with 'pip install "
         "openai-whisper' or run setup_env.py to configure the environment."
@@ -17,8 +17,11 @@ def test_load_transcribe_module_preserves_dependency_error(monkeypatch) -> None:
 
     monkeypatch.setattr(run.importlib, "import_module", fake_import_module)
 
-    with pytest.raises(ModuleNotFoundError) as exc_info:
+    with pytest.raises(SystemExit) as exc_info:
         run.load_transcribe_module()
 
-    assert str(exc_info.value) == friendly_message
-    assert exc_info.value.name == "whisper"
+    assert exc_info.value.code == 1
+
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err.strip() == friendly_message

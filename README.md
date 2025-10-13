@@ -256,6 +256,7 @@ results than local hardware can provide.
 | Symptom | Possible Cause | Suggested Fix |
 | --- | --- | --- |
 | `FileNotFoundError: Audio file not found` | Incorrect path supplied to `transcribe.py` | Provide the full audio path or copy the file into the repository root. |
+| CLI exits with `OpenAI Whisper is not installed...` | Whisper dependency missing from the environment | Install Whisper with `python -m pip install openai-whisper` or run `python setup_env.py` to prepare the virtual environment. |
 | `ffmpeg` errors | FFmpeg missing from `PATH` | Install FFmpeg and confirm `ffmpeg -version` works from the terminal. |
 | `ImportError: sentencepiece` or `soundfile` | Dependencies missing | Re-run `python -m pip install -r requirements.txt`. |
 | PyTorch install fails on Windows | Default wheels conflict with CPU-only setups | Install the CPU build: `python -m pip install torch --index-url https://download.pytorch.org/whl/cpu`. |
