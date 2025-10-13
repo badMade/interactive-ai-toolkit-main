@@ -4,12 +4,14 @@ This module contains test cases for text-to-speech functionality,
 including SpeechT5 model loading, speaker embeddings, and audio synthesis.
 """
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 from pathlib import Path
 import wave
 
-import torch
-import numpy as np
+import pytest
+
+torch = pytest.importorskip("torch")
+np = pytest.importorskip("numpy")
 
 from tts import (
     create_default_speaker_embedding,
