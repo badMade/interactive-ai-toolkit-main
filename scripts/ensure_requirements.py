@@ -132,6 +132,61 @@ sys.exit(0)
 """
 
 
+def _run_pkg_resources_check(
+    venv_python: Path,
+    *,
+    runner: CommandRunner | None = None,
+) -> subprocess.CompletedProcess[str]:
+    """Execute a lightweight probe for :mod:`pkg_resources`."""
+
+    active_runner = runner or subprocess.run
+    try:
+        return active_runner(
+            [str(venv_python), "-c", "import pkg_resources"],
+            check=False,
+            text=True,
+            capture_output=True,
+        )
+    except FileNotFoundError as error:  # pragma: no cover - defensive guard
+        raise EnvironmentProvisioningError(
+            f"The Python interpreter at {venv_python} could not be executed."
+        ) from error
+
+
+def ensure_setuptools(
+    venv_python: Path,
+    *,
+    venv_path: Path,
+    runner: CommandRunner | None = None,
+) -> None:
+    """Install :mod:`setuptools` when it is not present in the virtualenv."""
+
+    result = _run_pkg_resources_check(venv_python, runner=runner)
+    if result.returncode == 0:
+        return
+
+    env = build_venv_environment(venv_path)
+    run_command(
+        [
+            str(venv_python),
+            "-m",
+            "pip",
+            "install",
+            "--upgrade",
+            "pip",
+            "setuptools",
+        ],
+        runner=runner,
+        env=env,
+    )
+
+    result = _run_pkg_resources_check(venv_python, runner=runner)
+    if result.returncode != 0:
+        raise EnvironmentProvisioningError(
+            "Failed to install the 'setuptools' package in the virtual environment."
+        )
+
+
 def is_requirement_satisfied(
     venv_python: Path,
     requirement: str,
@@ -218,6 +273,7 @@ def synchronize_environment(
     ensure_requirements_file(requirements_path)
     ensure_virtualenv_exists(venv_path, runner=runner)
     venv_python = get_virtualenv_python_path(venv_path)
+    ensure_setuptools(venv_python, venv_path=venv_path, runner=runner)
     requirements = collect_requirements(requirements_path)
     if not requirements:
         return []

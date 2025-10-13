@@ -77,9 +77,12 @@ def test_synchronize_environment_installs_and_verifies(tmp_path: Path) -> None:
 
     runner = StubRunner(
         [
+            (1, "", ""),  # pkg_resources missing
+            (0, "", ""),  # install setuptools
+            (0, "", ""),  # pkg_resources available
             (1, "", ""),  # alpha missing
             (1, "", ""),  # beta missing
-            (0, "", ""),  # pip install
+            (0, "", ""),  # pip install requirements
             (0, "", ""),  # alpha satisfied after install
             (0, "", ""),  # beta satisfied after install
         ]
@@ -92,8 +95,16 @@ def test_synchronize_environment_installs_and_verifies(tmp_path: Path) -> None:
     )
 
     assert missing == ["alpha", "beta"]
-    pip_command = runner.commands[2]["command"]
+    pip_command = runner.commands[5]["command"]
     assert pip_command[:4] == [
+        str(python_dir / "python"),
+        "-m",
+        "pip",
+        "install",
+    ]
+
+    setuptools_command = runner.commands[1]["command"]
+    assert setuptools_command[:4] == [
         str(python_dir / "python"),
         "-m",
         "pip",
@@ -112,7 +123,7 @@ def test_synchronize_environment_skips_install_when_satisfied(tmp_path: Path) ->
     (venv_path / "pyvenv.cfg").write_text("home = /usr/bin/python\n")
     (python_dir / "python").write_text("#!/usr/bin/env python3\n")
 
-    runner = StubRunner([(0, "", ""), (0, "", "")])
+    runner = StubRunner([(0, "", ""), (0, "", ""), (0, "", "")])
 
     missing = ensure.synchronize_environment(
         requirements_path=requirements_path,
@@ -121,7 +132,50 @@ def test_synchronize_environment_skips_install_when_satisfied(tmp_path: Path) ->
     )
 
     assert missing == []
-    assert len(runner.commands) == 2
+    assert len(runner.commands) == 3
+
+
+def test_ensure_setuptools_installs_when_missing(tmp_path: Path) -> None:
+    venv_path = tmp_path / ".venv"
+    python_dir = venv_path / "bin"
+    python_dir.mkdir(parents=True)
+    venv_python = python_dir / "python"
+    venv_python.write_text("#!/usr/bin/env python3\n")
+
+    runner = StubRunner([(1, "", ""), (0, "", ""), (0, "", "")])
+
+    ensure.ensure_setuptools(
+        venv_python,
+        venv_path=venv_path,
+        runner=runner,
+    )
+
+    commands = runner.commands
+    assert commands[0]["command"] == [str(venv_python), "-c", "import pkg_resources"]
+    assert commands[1]["command"][:4] == [
+        str(venv_python),
+        "-m",
+        "pip",
+        "install",
+    ]
+    assert "setuptools" in commands[1]["command"]
+
+
+def test_ensure_setuptools_raises_when_install_fails(tmp_path: Path) -> None:
+    venv_path = tmp_path / ".venv"
+    python_dir = venv_path / "bin"
+    python_dir.mkdir(parents=True)
+    venv_python = python_dir / "python"
+    venv_python.write_text("#!/usr/bin/env python3\n")
+
+    runner = StubRunner([(1, "", ""), (0, "", ""), (1, "", "")])
+
+    with pytest.raises(ensure.EnvironmentProvisioningError):
+        ensure.ensure_setuptools(
+            venv_python,
+            venv_path=venv_path,
+            runner=runner,
+        )
 
 
 def test_ensure_virtualenv_exists_creates_environment(tmp_path: Path) -> None:
