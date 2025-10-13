@@ -3,9 +3,14 @@
 This module contains test cases for audio transcription functionality,
 including file loading and Whisper model integration.
 """
+import sys
 import unittest
-from unittest.mock import patch, MagicMock
 from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+# Provide a lightweight stub so importing :mod:`transcribe` does not require
+# the heavy Whisper dependency during tests.
+sys.modules.setdefault("whisper", MagicMock())
 
 import transcribe
 from transcribe import load_audio_path, transcribe_audio
