@@ -117,11 +117,28 @@ def ensure_virtual_environment() -> None:
     raise SystemExit(result.returncode)
 
 
+def _missing_whisper_message(exc: ModuleNotFoundError) -> str | None:
+    """Return the message to show when Whisper is not installed."""
+
+    message = str(exc).strip()
+    current: BaseException | None = exc
+    while current is not None:
+        if isinstance(current, ModuleNotFoundError) and getattr(current, "name", None) == "whisper":
+            return message or str(current).strip()
+        current = current.__cause__
+    return None
+
+
 def load_transcribe_module() -> ModuleType:
     """Safely load the ``transcribe`` module that powers the CLI."""
+
     try:
         return importlib.import_module("transcribe")
-    except ModuleNotFoundError as exc:  # pragma: no cover - defensive guard
+    except ModuleNotFoundError as exc:
+        whisper_message = _missing_whisper_message(exc)
+        if whisper_message is not None:
+            print(whisper_message, file=sys.stderr)
+            raise SystemExit(1) from None
         raise RuntimeError(
             "Could not import the 'transcribe' module required to "
             "launch the program."
