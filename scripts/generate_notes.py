@@ -16,8 +16,8 @@ def build_notes() -> str:
     Returns:
         str: Fully formatted notes document including newline termination.
     """
-    return f"""{textwrap.dedent(
-      """
+    return textwrap.dedent(
+        """
     Purpose of the Program
     ----------------------
     - Provide accessible speech tools by combining Whisper-based speech-to-text
@@ -135,7 +135,7 @@ def build_notes() -> str:
 - Logs and debug output: inspect terminal logs; Hugging Face downloads are
   cached automatically under the user's home directory.
 """
-    ).strip()}
+    ).strip()
 """
 
 
