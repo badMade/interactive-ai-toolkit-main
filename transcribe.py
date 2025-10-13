@@ -8,7 +8,8 @@ on the command line.
 from argparse import ArgumentParser, Namespace
 from importlib import import_module
 from pathlib import Path
-from typing import Any, Dict
+from types import ModuleType
+from typing import Any, Dict, Optional, Union
 
 
 MISSING_WHISPER_MESSAGE = (
@@ -18,7 +19,7 @@ MISSING_WHISPER_MESSAGE = (
 )
 
 
-def load_whisper_module():
+def load_whisper_module() -> ModuleType:
     """Import the Whisper module with a helpful error if it is unavailable."""
 
     try:
@@ -27,7 +28,24 @@ def load_whisper_module():
         raise ModuleNotFoundError(MISSING_WHISPER_MESSAGE) from exc
 
 
-whisper = load_whisper_module()
+class _LazyWhisperModule:
+    """Lazily resolve the Whisper dependency when it is first accessed."""
+
+    def __init__(self) -> None:
+        self._module: Optional[ModuleType] = None
+
+    def _resolve(self) -> ModuleType:
+        if self._module is None:
+            module = load_whisper_module()
+            self._module = module
+            globals()["whisper"] = module
+        return self._module
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._resolve(), name)
+
+
+whisper: Union[ModuleType, "_LazyWhisperModule"] = _LazyWhisperModule()
 
 DEFAULT_AUDIO = "lesson_recording.mp3"
 DEFAULT_MODEL = "base"
@@ -106,7 +124,10 @@ def main() -> None:
     """
     args = parse_arguments()
     audio_path = load_audio_path(args.audio_path)
-    result = transcribe_audio(audio_path, args.model, args.fp16)
+    try:
+        result = transcribe_audio(audio_path, args.model, args.fp16)
+    except ModuleNotFoundError as exc:
+        raise SystemExit(str(exc))
     print("Transcript:", result["text"])
 
 
