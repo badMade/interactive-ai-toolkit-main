@@ -122,10 +122,12 @@ def load_transcribe_module() -> ModuleType:
     try:
         return importlib.import_module("transcribe")
     except ModuleNotFoundError as exc:  # pragma: no cover - defensive guard
-        raise RuntimeError(
-            "Could not import the 'transcribe' module required to "
-            "launch the program."
-        ) from exc
+        if getattr(exc, "name", None) == "transcribe":
+            raise RuntimeError(
+                "Could not import the 'transcribe' module required to "
+                "launch the program."
+            ) from exc
+        raise
 
 
 def main() -> None:
