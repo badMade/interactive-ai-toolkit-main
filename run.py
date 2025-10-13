@@ -99,7 +99,8 @@ def ensure_virtual_environment() -> None:
     env["VIRTUAL_ENV"] = str(venv_path)
     bin_dir = venv_python.parent
     path = env.get("PATH", "")
-    env["PATH"] = os.pathsep.join([str(bin_dir), path]) if path else str(bin_dir)
+    env["PATH"] = os.pathsep.join([str(bin_dir),
+                                   path]) if path else str(bin_dir)
 
     try:
         result = subprocess.run(
