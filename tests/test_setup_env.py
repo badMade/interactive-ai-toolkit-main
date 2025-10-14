@@ -21,25 +21,46 @@ import setup_env
 class FakeRunner:
     """Mock subprocess runner for testing command execution.
 
-    This class simulates subprocess.run() behavior with configurable responses
-    and optional failure injection for testing error handling.
+    This class simulates subprocess.run() behavior with configurable responses,
+    optional failure injection, or explicit side effects.
     """
+
     def __init__(
         self,
         responses: list[tuple[str, str]] | None = None,
         fail_on: int | None = None,
+        side_effects: list[tuple[str, str] | BaseException] | None = None,
     ):
-        self.responses = responses or [("", "")] * 10
+        if side_effects is not None:
+            self.side_effects = deque(side_effects)
+            self.responses = None
+        else:
+            self.side_effects = None
+            self.responses = deque(responses or [("", "")] * 10)
         self.fail_on = fail_on
         self.calls: list[tuple[list[str], bool]] = []
 
     def __call__(self, command, *, check, text, capture_output):
-        """Execute a fake subprocess command with
-        configurable response or failure."""
+        """Execute a fake subprocess command with configurable behavior."""
+        if self.side_effects is not None:
+            if not self.side_effects:
+                raise AssertionError("No more side effects configured")
+            effect = self.side_effects.popleft()
+            self.calls.append((command, capture_output))
+            if isinstance(effect, BaseException):
+                raise effect
+            stdout, stderr = effect
+            return subprocess.CompletedProcess(
+                args=command,
+                returncode=0,
+                stdout=stdout,
+                stderr=stderr,
+            )
+
         if self.fail_on is not None and len(self.calls) == self.fail_on:
             raise subprocess.CalledProcessError(returncode=1, cmd=command)
         self.calls.append((command, capture_output))
-        stdout, stderr = self.responses.pop(0)
+        stdout, stderr = self.responses.popleft()
         return subprocess.CompletedProcess(
             args=command,
             returncode=0,
@@ -164,43 +185,73 @@ def test_ensure_ffmpeg_available_success() -> None:
     assert runner.calls == [(["ffmpeg", "-version"], True)]
 
 
-@pytest.mark.parametrize(
-    "os_name, sys_platform, expected",
-    [
-        ("nt", "win32", "winget install"),
-        ("posix", "darwin", "brew install ffmpeg"),
-        ("posix", "linux", "apt install ffmpeg"),
-    ],
-)
-def test_ensure_ffmpeg_available_failure(monkeypatch,
-                                         os_name,
-                                         sys_platform,
-                                         expected) -> None:
-    """Test that ensure_ffmpeg_available provides
-    platform-specific install guidance."""
-    runner = FakeRunner(fail_on=0)
-    monkeypatch.setattr(setup_env.os, "name", os_name, raising=False)
-    monkeypatch.setattr(setup_env.sys, "platform", sys_platform, raising=False)
+def test_ensure_ffmpeg_available_windows_guidance(monkeypatch) -> None:
+    """Test that Windows users receive manual installation guidance."""
+    runner = FakeRunner(
+        side_effects=[
+            subprocess.CalledProcessError(
+                returncode=1,
+                cmd=["ffmpeg", "-version"],
+            )
+        ]
+    )
+    monkeypatch.setattr(setup_env.os, "name", "nt", raising=False)
+    monkeypatch.setattr(setup_env.sys, "platform", "win32", raising=False)
+
     with pytest.raises(setup_env.SetupError) as error:
         setup_env.ensure_ffmpeg_available(runner=runner)
-    assert expected in str(error.value)
+
+    assert "winget install" in str(error.value)
 
 
-def test_ensure_ffmpeg_available_missing_binary(monkeypatch) -> None:
-    """Test that ensure_ffmpeg_available handles
-    FileNotFoundError appropriately."""
-    def missing_runner(command, *, check, text, capture_output):
-        raise FileNotFoundError("ffmpeg not found")
+def test_ensure_ffmpeg_available_triggers_script(monkeypatch) -> None:
+    """Test automatic installer invocation when FFmpeg is initially missing."""
+    script_effects = [
+        subprocess.CalledProcessError(
+            returncode=1,
+            cmd=["ffmpeg", "-version"],
+        ),
+        ("installation output", ""),
+        ("ffmpeg version 6.1", ""),
+    ]
+    runner = FakeRunner(side_effects=script_effects)
+
+    monkeypatch.setattr(setup_env.os, "name", "posix", raising=False)
+    monkeypatch.setattr(setup_env.sys, "platform", "linux", raising=False)
+
+    setup_env.ensure_ffmpeg_available(runner=runner)
+
+    assert len(runner.calls) == 3
+    assert runner.calls[0][0] == ["ffmpeg", "-version"]
+    assert runner.calls[1][0][0].endswith("scripts/install_ffmpeg.sh")
+    assert runner.calls[2][0] == ["ffmpeg", "-version"]
+
+
+def test_ensure_ffmpeg_available_script_failure(monkeypatch) -> None:
+    """Test that script failure propagates descriptive error details."""
+    runner = FakeRunner(
+        side_effects=[
+            subprocess.CalledProcessError(
+                returncode=1,
+                cmd=["ffmpeg", "-version"],
+            ),
+            subprocess.CalledProcessError(
+                returncode=1,
+                cmd=["scripts/install_ffmpeg.sh"],
+                stderr="installation failed",
+            ),
+        ]
+    )
 
     monkeypatch.setattr(setup_env.os, "name", "posix", raising=False)
     monkeypatch.setattr(setup_env.sys, "platform", "linux", raising=False)
 
     with pytest.raises(setup_env.SetupError) as error:
-        setup_env.ensure_ffmpeg_available(runner=missing_runner)
+        setup_env.ensure_ffmpeg_available(runner=runner)
 
     message = str(error.value)
-    assert "FFmpeg is required but was not detected" in message
-    assert "apt install ffmpeg" in message
+    assert "automatic installation failed" in message
+    assert "installation failed" in message
 
 
 def test_verify_installation_success(tmp_path: Path) -> None:
