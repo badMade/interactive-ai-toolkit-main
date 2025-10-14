@@ -456,8 +456,13 @@ def _ensure_supported_numpy(version: str) -> None:
             "Could not parse the NumPy version string "
             f"'{version}'. Reinstall NumPy with `python -m pip install \"{NUMPY_PINNED_SPEC}\"`."
         )
-    major = int(match.group(1))
-    if major >= 2:
+    pinned_version = NUMPY_PINNED_SPEC.partition("==")[2]
+    if not pinned_version:
+        raise SetupError(
+            "Unable to determine the project's pinned NumPy version. "
+            "Update the setup tooling to specify an exact requirement."
+        )
+    if normalized != pinned_version:
         raise SetupError(
             "Detected NumPy version "
             f"{normalized}. The toolkit requires {NUMPY_PINNED_SPEC} for compatibility. "
