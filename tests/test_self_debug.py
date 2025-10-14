@@ -102,6 +102,28 @@ def test_diagnose_numpy_version_conflict() -> None:
     assert "numpy<2" in (result.recommendation or "")
 
 
+def test_diagnose_numpy_version_handles_import_error() -> None:
+    def _importer(_: str) -> None:
+        raise ImportError("bad wheel")
+
+    result = self_debug.diagnose_numpy_version(importer=_importer)
+
+    assert result.status == "unavailable"
+    assert "Import failed" in result.details
+    assert "numpy<2" in (result.recommendation or "")
+
+
+def test_diagnose_numpy_version_handles_runtime_error() -> None:
+    def _importer(_: str) -> None:
+        raise RuntimeError("missing extension module")
+
+    result = self_debug.diagnose_numpy_version(importer=_importer)
+
+    assert result.status == "unavailable"
+    assert "RuntimeError" in result.details
+    assert "numpy<2" in (result.recommendation or "")
+
+
 def test_main_respects_json_flag(monkeypatch, capsys) -> None:
     markitdown_result = self_debug.DiagnosticResult(
         name="markitdown",

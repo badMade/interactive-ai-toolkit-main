@@ -131,6 +131,27 @@ def diagnose_numpy_version(
                 f"Install a compatible build with '{NUMPY_REINSTALL_COMMAND}'."
             ),
         )
+    except ImportError as exc:
+        return DiagnosticResult(
+            name="numpy",
+            status="unavailable",
+            details=f"Import failed: {exc}",
+            recommendation=(
+                f"Reinstall the package with '{NUMPY_REINSTALL_COMMAND}'."
+            ),
+        )
+    except Exception as exc:  # pragma: no cover - defensive safety net
+        return DiagnosticResult(
+            name="numpy",
+            status="unavailable",
+            details=(
+                "Import raised "
+                f"{exc.__class__.__name__}: {exc}"
+            ),
+            recommendation=(
+                f"Reinstall the package with '{NUMPY_REINSTALL_COMMAND}'."
+            ),
+        )
 
     version_text = str(getattr(module, "__version__", "")).strip()
     if not version_text:
