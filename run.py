@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+import json
 import os
 import subprocess
 import sys
@@ -36,6 +37,102 @@ def get_requirements_script_path() -> Path:
     """Return the helper script responsible for synchronizing dependencies."""
 
     return get_project_root() / "scripts" / "ensure_requirements.py"
+
+
+def get_setup_log_path() -> Path:
+    """Return the path to the setup log file."""
+
+    return get_project_root() / ".setup_log.json"
+
+
+def get_setup_env_script_path() -> Path:
+    """Return the path to the setup_env.py script."""
+
+    return get_project_root() / "setup_env.py"
+
+
+def get_requirements_path() -> Path:
+    """Return the path to the requirements.txt file."""
+
+    return get_project_root() / "requirements.txt"
+
+
+def verify_setup_log() -> bool:
+    """Check if setup_env.py has been run successfully.
+
+    Returns:
+        True if setup log exists and all required packages are installed.
+    """
+    setup_log_path = get_setup_log_path()
+    requirements_path = get_requirements_path()
+
+    if not setup_log_path.exists():
+        return False
+
+    if not requirements_path.exists():
+        return False
+
+    try:
+        with open(setup_log_path, "r", encoding="utf-8") as f:
+            log_data = json.load(f)
+
+        if not log_data.get("setup_completed", False):
+            return False
+
+        installed_packages = log_data.get("installed_packages", {})
+
+        # Read requirements.txt to get expected packages
+        with open(requirements_path, "r", encoding="utf-8") as f:
+            requirements = f.read().strip().split("\n")
+
+        # Parse package names from requirements (handle versions, etc.)
+        required_packages = set()
+        for req in requirements:
+            req = req.strip()
+            if not req or req.startswith("#"):
+                continue
+            # Extract package name (handle versions like package>=1.0)
+            package_name = req.split("==")[0].split(">=")[0].split("<=")[0]
+            package_name = package_name.split(">")[0].split("<")[0].strip()
+            # Normalize package name (openai-whisper -> whisper)
+            if package_name == "openai-whisper":
+                package_name = "whisper"
+            required_packages.add(package_name)
+
+        # Check if all required packages are in the log
+        for package in required_packages:
+            if package not in installed_packages:
+                return False
+
+        return True
+
+    except (json.JSONDecodeError, KeyError, OSError):
+        return False
+
+
+def run_setup_env() -> None:
+    """Run setup_env.py to configure the environment."""
+    setup_script = get_setup_env_script_path()
+
+    if not setup_script.exists():
+        raise RuntimeError(
+            f"Setup script not found at {setup_script}. "
+            "Cannot configure the environment."
+        )
+
+    print("Running environment setup...")
+    try:
+        subprocess.run(
+            [sys.executable, str(setup_script)],
+            check=True,
+            text=True,
+            capture_output=False,
+        )
+    except subprocess.CalledProcessError as exc:
+        raise RuntimeError(
+            "Failed to complete environment setup. "
+            "Please run setup_env.py manually and fix any errors."
+        ) from exc
 
 
 def is_running_inside_virtualenv(venv_path: Path) -> bool:
@@ -153,6 +250,11 @@ def load_transcribe_module() -> ModuleType:
 
 def main() -> None:
     """Import and execute the project's primary command-line entry point."""
+
+    # Check if setup has been completed, run setup_env.py if needed
+    if not verify_setup_log():
+        print("Setup not complete or requirements have changed.")
+        run_setup_env()
 
     ensure_virtual_environment()
     module = load_transcribe_module()

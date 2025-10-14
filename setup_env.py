@@ -3,10 +3,12 @@ Utility script to provision a dedicated Python environment for the project.
 """
 from __future__ import annotations
 
+import json
 import logging
 import os
 import subprocess
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Iterable, Protocol
 
@@ -201,9 +203,12 @@ def verify_installation(
     packages: Iterable[str],
     *,
     runner: CommandRunner | None = None,
-) -> None:
+) -> dict[str, str]:
     """
     Validate the new environment by reporting toolchain and package versions.
+
+    Returns:
+        dict: Dictionary mapping package names to their installed versions.
     """
     python_version = run_command([str(venv_python), "--version"],
                                  capture_output=True, runner=runner)
@@ -216,6 +221,7 @@ def verify_installation(
     )
     logging.info("pip version: %s", pip_version)
 
+    installed_packages = {}
     for package in packages:
         code = (
             "import importlib; "
@@ -229,6 +235,34 @@ def verify_installation(
             runner=runner,
         )
         logging.info("Verified %s %s", package, version or "installed")
+        installed_packages[package] = version or "installed"
+
+    return installed_packages
+
+
+def write_setup_log(
+    log_path: Path,
+    installed_packages: dict[str, str],
+    requirements_path: Path,
+) -> None:
+    """Write a log file documenting the successful setup.
+
+    Args:
+        log_path: Path where the setup log should be written.
+        installed_packages: Dictionary of package names to versions.
+        requirements_path: Path to the requirements.txt file used.
+    """
+    log_data = {
+        "setup_completed": True,
+        "timestamp": datetime.now().isoformat(),
+        "requirements_file": str(requirements_path),
+        "installed_packages": installed_packages,
+    }
+
+    with open(log_path, "w", encoding="utf-8") as f:
+        json.dump(log_data, f, indent=2)
+
+    logging.info("Setup log written to %s", log_path)
 
 
 def main() -> int:
@@ -238,6 +272,7 @@ def main() -> int:
     project_root = Path(__file__).resolve().parent
     venv_path = project_root / ".venv"
     requirements_path = project_root / "requirements.txt"
+    setup_log_path = project_root / ".setup_log.json"
 
     try:
         ensure_requirements_file(requirements_path)
@@ -245,10 +280,11 @@ def main() -> int:
         create_virtualenv(venv_path)
         venv_python = get_venv_python_path(venv_path)
         install_requirements(venv_python, requirements_path)
-        verify_installation(
+        installed_packages = verify_installation(
             venv_python,
             packages=DEFAULT_VALIDATION_PACKAGES,
         )
+        write_setup_log(setup_log_path, installed_packages, requirements_path)
     except SetupError as error:
         logging.error(colorize(f"Environment setup failed: {error}", "red"))
         print(colorize("Environment setup failed. "
