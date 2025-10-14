@@ -112,6 +112,13 @@ class SetupLogStatus:
 
     @property
     def has_missing_requirements(self) -> bool:
+        """
+        Return True when there are recorded missing requirements.
+
+        Returns:
+            bool: True if the `missing_requirements` collection contains any
+            items, otherwise False.
+        """
         return bool(self.missing_requirements)
 
 
