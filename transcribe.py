@@ -21,6 +21,10 @@ MISSING_WHISPER_MESSAGE = (
 )
 
 
+# Exposed for test instrumentation; patched in unit tests without requiring Whisper.
+whisper: ModuleType | None = None
+
+
 @lru_cache(maxsize=1)
 def _import_whisper() -> ModuleType:
     try:
@@ -31,7 +35,11 @@ def _import_whisper() -> ModuleType:
 
 def load_whisper_module() -> ModuleType:
     """Import the Whisper module with a helpful error if it is unavailable."""
-    return _import_whisper()
+    global whisper
+    if whisper is not None:
+        return whisper
+    whisper = _import_whisper()
+    return whisper
 
 
 DEFAULT_AUDIO = "lesson_recording.mp3"
