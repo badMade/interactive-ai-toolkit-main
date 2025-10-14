@@ -28,7 +28,7 @@ sys.modules.setdefault("whisper", MagicMock())
 
 import transcribe
 from compatibility import NumpyCompatibilityError
-from transcribe import load_audio_path, transcribe_audio
+from transcribe import ensure_ffmpeg_available, load_audio_path, transcribe_audio
 
 
 class TestTranscribe(unittest.TestCase):
@@ -120,11 +120,13 @@ class TestTranscribe(unittest.TestCase):
 
         mock_import_module.assert_called_once_with("whisper")
 
+    @patch("transcribe.ensure_ffmpeg_available")
     @patch("transcribe.load_audio_path")
     @patch("transcribe.parse_arguments")
     def test_main_reports_missing_whisper(self,
                                           mock_parse_arguments,
-                                          mock_load_audio_path):
+                                          mock_load_audio_path,
+                                          mock_ensure_ffmpeg):
         """Ensures the CLI exits cleanly when Whisper is unavailable."""
 
         args = Namespace(
@@ -149,13 +151,16 @@ class TestTranscribe(unittest.TestCase):
             stderr.getvalue().strip(),
             transcribe.MISSING_WHISPER_MESSAGE,
         )
+        mock_ensure_ffmpeg.assert_called_once_with()
 
+    @patch("transcribe.ensure_ffmpeg_available")
     @patch("transcribe.parse_arguments")
     @patch("transcribe.load_audio_path")
     def test_main_reports_incompatible_numpy(
         self,
         mock_load_audio_path,
         mock_parse_arguments,
+        mock_ensure_ffmpeg,
     ):
         """The CLI should exit cleanly when NumPy is incompatible."""
 
@@ -178,6 +183,7 @@ class TestTranscribe(unittest.TestCase):
 
         assert exit_info.exception.code == 1
         assert "numpy<2" in stderr.getvalue()
+        mock_ensure_ffmpeg.assert_called_once_with()
 
 
     def test_configure_certificate_bundle_sets_environment(self):
@@ -211,6 +217,23 @@ class TestTranscribe(unittest.TestCase):
 
         with self.assertRaises(FileNotFoundError):
             transcribe.configure_certificate_bundle("missing.pem")
+
+    @patch("transcribe.shutil.which", return_value="/usr/bin/ffmpeg")
+    def test_ensure_ffmpeg_available_success(self, mock_which):
+        """The helper should return silently when ffmpeg is available."""
+
+        ensure_ffmpeg_available()
+        mock_which.assert_called_once_with("ffmpeg")
+
+    @patch("transcribe.shutil.which", return_value=None)
+    def test_ensure_ffmpeg_available_failure(self, mock_which):
+        """Missing ffmpeg should exit with actionable guidance."""
+
+        with self.assertRaises(SystemExit) as exit_info:
+            ensure_ffmpeg_available()
+
+        mock_which.assert_called_once_with("ffmpeg")
+        self.assertEqual(exit_info.exception.code, transcribe.FFMPEG_INSTALL_MESSAGE)
 
 
 if __name__ == "__main__":
