@@ -37,7 +37,8 @@ python -m pip install --force-reinstall \
   transformers==4.57.0 \
   soundfile==0.13.1 \
   sentencepiece==0.2.1 \
-  pytest==8.4.2
+  pytest==8.4.2 \
+  imageio[ffmpeg]
 
 python - <<'PY'
 import numpy
@@ -48,6 +49,8 @@ import transformers
 import soundfile
 import sentencepiece
 import whisper
+import imageio
+import imageio_ffmpeg
 
 print("Environment setup verification succeeded.")
 PY
