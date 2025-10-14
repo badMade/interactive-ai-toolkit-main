@@ -12,6 +12,8 @@ from pathlib import Path
 from types import ModuleType
 from typing import Mapping, Sequence
 
+import ffmpeg_support
+
 PROJECT_ROOT = Path(__file__).resolve().parent
 SETUP_LOG_RELATIVE_PATH = Path("logs") / "setup_state.json"
 
@@ -431,6 +433,11 @@ def main() -> None:
     """Import and execute the project's primary command-line entry point."""
 
     ensure_virtual_environment()
+    try:
+        ffmpeg_support.ensure_ffmpeg_available()
+    except ffmpeg_support.FFmpegInstallationError as exc:
+        print(str(exc), file=sys.stderr)
+        raise SystemExit(1) from None
     module = load_transcribe_module()
     try:
         launch = module.main

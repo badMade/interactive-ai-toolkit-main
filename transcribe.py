@@ -6,7 +6,6 @@ file and model are configured for local experimentation but can be overridden
 on the command line.
 """
 import os
-import shutil
 import sys
 from argparse import ArgumentParser, Namespace
 from functools import lru_cache
@@ -16,6 +15,7 @@ from types import ModuleType
 from typing import Any, Dict
 
 from compatibility import ensure_numpy_compatible, NumpyCompatibilityError
+import ffmpeg_support
 from shared_messages import MISSING_WHISPER_MESSAGE
 
 
@@ -46,9 +46,10 @@ DEFAULT_AUDIO = "lesson_recording.mp3"
 DEFAULT_MODEL = "base"
 
 FFMPEG_INSTALL_MESSAGE = (
-    "ffmpeg is required to transcribe audio. "
-    "Install it with Homebrew (`brew install ffmpeg`) or apt (`sudo apt-get install ffmpeg`). "
-    "Alternatively, run `pip install imageio[ffmpeg]` to install a Python-managed binary."
+    "FFmpeg is required to transcribe audio. It can be installed automatically "
+    "by running `scripts/install_ffmpeg.sh`, via common package managers such as "
+    "`brew install ffmpeg` or `sudo apt-get install ffmpeg`, or by running "
+    "`pip install imageio[ffmpeg]` to use a Python-managed binary."
 )
 
 
@@ -112,10 +113,11 @@ def load_audio_path(raw_path: str) -> Path:
 def ensure_ffmpeg_available() -> None:
     """Verify that the ffmpeg executable is present on the system path."""
 
-    if shutil.which("ffmpeg") is not None:
-        return
-
-    raise SystemExit(FFMPEG_INSTALL_MESSAGE)
+    try:
+        ffmpeg_support.ensure_ffmpeg_available()
+    except ffmpeg_support.FFmpegInstallationError as exc:
+        message = str(exc) or FFMPEG_INSTALL_MESSAGE
+        raise SystemExit(message) from None
 
 
 def configure_certificate_bundle(raw_bundle_path: str | None) -> None:
