@@ -78,9 +78,13 @@ def diagnose_python_version(
             status="available",
             details=f"Interpreter version {version_text} matches Python {expected_major}.{expected_minor}.",
         )
-    recommendation = (
-        "Activate the project's Python 3.12 virtual environment before running diagnostics."
-    )
+    base_message = "Activate the project's Python 3.12 virtual environment before running diagnostics."
+    if sys.platform == "darwin":
+        recommendation = (
+            f"{base_message} On macOS, run ./fix_env.sh from the project root to rebuild the pinned Python {expected_major}.{expected_minor} environment."
+        )
+    else:
+        recommendation = base_message
     return DiagnosticResult(
         name="python",
         status="unavailable",

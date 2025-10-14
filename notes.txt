@@ -9,7 +9,8 @@ Purpose of the Program
 
 Prerequisites
 -------------
-- Python 3.10 or newer (use virtual environments to isolate dependencies).
+- Python 3.12 (the pinned dependency set in ``requirements.txt`` is validated
+  against this interpreter).
 - FFmpeg installed and available on PATH so Whisper can decode audio
   (verify with ``ffmpeg -version``).
 - Internet access the first time Whisper and SpeechT5 model weights
@@ -25,15 +26,18 @@ Installation Instructions
    - macOS/Linux (bash or zsh): ``python3 -m venv .venv`` then
      ``source .venv/bin/activate``
 2. Upgrade pip: ``python -m pip install --upgrade pip``
-3. Install the compatible NumPy build: ``python -m pip install "numpy<2"``
-4. Install dependencies: ``python -m pip install -r requirements.txt``
-5. Install FFmpeg (required for Whisper audio decoding).
+3. Install the pinned dependencies: ``python -m pip install -r requirements.txt``
+4. Install FFmpeg (required for Whisper audio decoding).
    - Windows: download from https://www.gyan.dev/ffmpeg/builds/ and add
      ``ffmpeg.exe`` to PATH or copy it beside ``transcribe.py``
    - macOS: ``brew install ffmpeg``
    - Linux: ``sudo apt install ffmpeg``
-6. (Optional) Install the OpenAI Python client:
+5. (Optional) Install the OpenAI Python client:
     ``python -m pip install openai``
+
+If you are using macOS on x86_64 and the environment becomes inconsistent,
+run ``./fix_env.sh`` from the project root to recreate a fresh Python 3.12
+virtual environment with the vetted, pinned requirements.
 
 Why Some Files Are Not Tracked
 ------------------------------
@@ -60,7 +64,6 @@ Hands-on Walkthrough
      ``source .venv/bin/activate``
 2. Upgrade packaging tooling and install dependencies:
    ``python -m pip install --upgrade pip``
-   ``python -m pip install "numpy<2"``
    ``python -m pip install -r requirements.txt``.
 3. Install FFmpeg (Windows builds from Gyan.dev, ``brew install ffmpeg`` on
    macOS, or ``sudo apt install ffmpeg`` on Debian/Ubuntu) and confirm the
@@ -94,7 +97,6 @@ Quick Setup Cheatsheet
 ----------------------
 - ``python -m venv .venv`` → activate it for your platform.
 - ``python -m pip install --upgrade pip``
-- ``python -m pip install "numpy<2"``
 - ``python -m pip install -r requirements.txt``
 - Ensure ``ffmpeg -version`` succeeds, then run ``python transcribe.py`` or
   ``python tts.py`` as needed.
@@ -106,8 +108,10 @@ Troubleshooting Tips
 - ``ImportError`` for ``sentencepiece`` or ``soundfile`` when running
   ``tts.py``: reinstall dependencies via
   ``python -m pip install -r requirements.txt``.
-- NumPy 2.x accidentally installed: reinstall the compatible release with
-  ``python -m pip install "numpy<2"`` before running the toolkit again.
+- NumPy 2.x accidentally installed: reinstall the pinned dependency set with
+  ``python -m pip install -r requirements.txt`` before running the toolkit
+  again (macOS users can run ``./fix_env.sh`` to rebuild the entire virtual
+  environment).
 - PyTorch installation issues on Windows: install the CPU wheel
   ``python -m pip install torch
   --index-url https://download.pytorch.org/whl/cpu``.
