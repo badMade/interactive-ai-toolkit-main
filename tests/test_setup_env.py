@@ -6,10 +6,12 @@ installation, FFmpeg availability checks, and installation verification.
 """
 from __future__ import annotations
 
-import sys
-from types import SimpleNamespace
-from pathlib import Path
+import logging
 import subprocess
+import sys
+from collections import deque
+from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -238,3 +240,49 @@ def test_verify_installation_failure(tmp_path: Path) -> None:
             packages=packages,
             runner=runner,
         )
+
+
+def test_main_writes_rotating_log_with_packages(monkeypatch, tmp_path: Path) -> None:
+    """Ensure main() writes package data to the configured log file."""
+
+    log_path = tmp_path / "logs" / "test_setup_env.log"
+    monkeypatch.setenv(setup_env.LOG_PATH_ENV_VAR, str(log_path))
+
+    responses = deque(
+        [
+            "Python 3.11.0",
+            "pip 23.0",
+            *(f"{name}-version" for name in setup_env.DEFAULT_VALIDATION_PACKAGES),
+        ]
+    )
+
+    def fake_run_command(command, *, capture_output=False, runner=None):
+        if capture_output:
+            if not responses:
+                raise AssertionError("Unexpected command invocation")
+            return responses.popleft()
+        return ""
+
+    monkeypatch.setattr(setup_env, "run_command", fake_run_command)
+    monkeypatch.setattr(setup_env, "ensure_ffmpeg_available", lambda **_: None)
+    monkeypatch.setattr(setup_env, "create_virtualenv", lambda *_, **__: None)
+    monkeypatch.setattr(setup_env, "install_requirements", lambda *_, **__: None)
+    monkeypatch.setattr(setup_env, "write_setup_log", lambda *_, **__: None)
+
+    exit_code = setup_env.main()
+    assert exit_code == 0
+
+    root_logger = logging.getLogger()
+    for handler in list(root_logger.handlers):
+        handler.flush()
+
+    assert log_path.exists(), "Expected log file to be created"
+    log_contents = log_path.read_text(encoding="utf-8")
+
+    for package in setup_env.DEFAULT_VALIDATION_PACKAGES:
+        assert package in log_contents
+    assert "INSTALLATION_SUMMARY" in log_contents
+
+    for handler in list(root_logger.handlers):
+        handler.close()
+        root_logger.removeHandler(handler)
