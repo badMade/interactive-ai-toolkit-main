@@ -13,7 +13,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_VENV_PATH = PROJECT_ROOT / ".venv"
 DEFAULT_REQUIREMENTS_FILE = PROJECT_ROOT / "requirements.txt"
 
-NUMPY_PINNED_SPEC = "numpy<2"
+NUMPY_PINNED_SPEC = "numpy==1.26.4"
 
 REQUIRED_PYTHON_VERSION = (3, 12)
 
@@ -234,25 +234,25 @@ def collect_requirements(requirements_path: Path) -> list[str]:
 
 
 def ensure_numpy_requirement(requirements: Sequence[str]) -> None:
-    """Ensure that *requirements* pins NumPy below major version two."""
+    """Ensure that *requirements* include the project's pinned NumPy build."""
 
-    normalized_requirements = [
-        requirement.lower().replace(" ", "") for requirement in requirements
-    ]
-    numpy_entries = [
-        requirement for requirement in normalized_requirements if requirement.startswith("numpy")
-    ]
-    if not numpy_entries:
+    normalized_requirements = [requirement.strip() for requirement in requirements]
+    compact_expected = NUMPY_PINNED_SPEC.lower().replace(" ", "")
+    for requirement in normalized_requirements:
+        compact = requirement.lower().replace(" ", "")
+        if not compact.startswith("numpy"):
+            continue
+        if compact == compact_expected:
+            return
         raise EnvironmentProvisioningError(
-            "The requirements file must include the dependency "
-            f"'{NUMPY_PINNED_SPEC}' to keep compatibility with PyTorch and Whisper."
+            "The NumPy dependency must match the pinned version "
+            f"'{NUMPY_PINNED_SPEC}'. Update requirements.txt and rerun the setup."
         )
-    for requirement in numpy_entries:
-        if "<2" not in requirement:
-            raise EnvironmentProvisioningError(
-                "The NumPy dependency must be pinned below version 2.0. "
-                "Update requirements.txt to include 'numpy<2' and rerun the setup."
-            )
+
+    raise EnvironmentProvisioningError(
+        "The requirements file must include the dependency "
+        f"'{NUMPY_PINNED_SPEC}' to keep compatibility with PyTorch and Whisper."
+    )
 
 
 _CHECK_REQUIREMENT_CODE = """

@@ -96,7 +96,7 @@ def test_diagnose_numpy_rejects_major_two() -> None:
     result = self_debug.diagnose_numpy(importer=lambda _: module)
 
     assert result.status == "unavailable"
-    assert "numpy<2" in (result.recommendation or "")
+    assert "numpy==1.26.4" in (result.recommendation or "")
 
 
 def test_diagnose_numpy_missing() -> None:
@@ -106,7 +106,7 @@ def test_diagnose_numpy_missing() -> None:
     result = self_debug.diagnose_numpy(importer=_importer)
 
     assert result.status == "unavailable"
-    assert "numpy<2" in (result.recommendation or "")
+    assert "numpy==1.26.4" in (result.recommendation or "")
 
 
 def test_main_respects_json_flag(monkeypatch, capsys) -> None:

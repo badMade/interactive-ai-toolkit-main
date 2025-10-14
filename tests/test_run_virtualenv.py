@@ -11,13 +11,15 @@ import pytest
 import run
 
 REQUIREMENTS = (
-    "openai-whisper",
-    "transformers",
-    "torch",
-    "soundfile",
-    "sentencepiece",
-    "numpy<2",
-    "pytest",
+    "numpy==1.26.4",
+    "torch==2.2.2",
+    "torchvision==0.17.2",
+    "torchaudio==2.2.2",
+    "openai-whisper==20250625",
+    "transformers==4.57.0",
+    "soundfile==0.13.1",
+    "sentencepiece==0.2.1",
+    "pytest==8.4.2",
 )
 
 

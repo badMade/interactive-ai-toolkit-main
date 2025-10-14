@@ -20,7 +20,7 @@ class DiagnosticError(RuntimeError):
 ExecutableLocator = Callable[[str], str | None]
 
 
-NUMPY_PINNED_SPEC = "numpy<2"
+NUMPY_PINNED_SPEC = "numpy==1.26.4"
 
 
 @dataclass(frozen=True)
@@ -197,8 +197,8 @@ def diagnose_numpy(
             status="unavailable",
             details=f"Import failed: {exc}",
             recommendation=(
-                "Install the compatible build with "
-                "`python -m pip install \"numpy<2\"`."
+                "Install the pinned build with "
+                "`python -m pip install \"numpy==1.26.4\"`."
             ),
         )
 
@@ -209,7 +209,7 @@ def diagnose_numpy(
             status="unavailable",
             details="Unable to determine the installed NumPy version.",
             recommendation=(
-                "Reinstall NumPy with `python -m pip install \"numpy<2\"` and rerun the diagnostics."
+                "Reinstall NumPy with `python -m pip install \"numpy==1.26.4\"` and rerun the diagnostics."
             ),
         )
 
@@ -222,7 +222,7 @@ def diagnose_numpy(
             status="unavailable",
             details=f"Could not parse NumPy version '{version}'.",
             recommendation=(
-                "Reinstall the dependency with `python -m pip install \"numpy<2\"`."
+                "Reinstall the dependency with `python -m pip install \"numpy==1.26.4\"`."
             ),
         )
 
@@ -232,7 +232,7 @@ def diagnose_numpy(
             status="unavailable",
             details=f"Detected NumPy {version}, which is not supported.",
             recommendation=(
-                "Downgrade to a compatible build with `python -m pip install \"numpy<2\"`."
+                "Downgrade to the pinned build with `python -m pip install \"numpy==1.26.4\"`."
             ),
         )
 

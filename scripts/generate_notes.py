@@ -29,7 +29,7 @@ Purpose of the Program
 
 Prerequisites
 -------------
-- Python 3.10 or newer (use virtual environments to isolate dependencies).
+- Python 3.12 (use virtual environments to isolate dependencies).
 - FFmpeg installed and available on PATH so Whisper can decode audio
   (verify with ``ffmpeg -version``).
 - Internet access the first time Whisper and SpeechT5 model weights
@@ -37,23 +37,36 @@ Prerequisites
 - Optional: the ``openai`` Python client when you plan to call the hosted
   Whisper API.
 
+``requirements.txt`` pins critical packages—including ``numpy==1.26.4`` and the
+PyTorch stack—to versions verified to work together across supported
+environments.
+
 Installation Instructions
 -------------------------
 1. Create and activate a Python virtual environment.
    - Windows (PowerShell): ``py -3.12 -m venv .venv`` then
      ``.\\.venv\\Scripts\\Activate``
-   - macOS/Linux (bash or zsh): ``python3 -m venv .venv`` then
+   - macOS/Linux (bash or zsh): ``python3.12 -m venv .venv`` then
      ``source .venv/bin/activate``
 2. Upgrade pip: ``python -m pip install --upgrade pip``
-3. Install the compatible NumPy build: ``python -m pip install "numpy<2"``
-4. Install dependencies: ``python -m pip install -r requirements.txt``
-5. Install FFmpeg (required for Whisper audio decoding).
+3. Install dependencies from ``requirements.txt`` (pinned to compatible builds):
+   ``python -m pip install -r requirements.txt``
+4. Install FFmpeg (required for Whisper audio decoding).
    - Windows: download from https://www.gyan.dev/ffmpeg/builds/ and add
      ``ffmpeg.exe`` to PATH or copy it beside ``transcribe.py``
    - macOS: ``brew install ffmpeg``
    - Linux: ``sudo apt install ffmpeg``
-6. (Optional) Install the OpenAI Python client:
-    ``python -m pip install openai``
+5. (Optional) Install the OpenAI Python client:
+   ``python -m pip install openai``
+
+macOS Recovery Shortcut
+-----------------------
+- ``./fix_env.sh`` recreates the virtual environment on macOS x86_64,
+  rewrites ``requirements.txt`` with the pinned versions (including
+  ``numpy==1.26.4``), force-reinstalls all packages, and performs a sanity
+  import check for NumPy, PyTorch, and Whisper. The helper exits with an error
+  on other platforms so Windows and Linux users continue using
+  ``setup_env.py`` or their preferred tooling.
 
 Why Some Files Are Not Tracked
 ------------------------------
@@ -76,12 +89,11 @@ Hands-on Walkthrough
 1. Create and activate a virtual environment.
    - Windows (PowerShell): ``py -3.12 -m venv .venv`` then
      ``.\\.venv\\Scripts\\Activate``
-   - macOS/Linux (bash or zsh): ``python3 -m venv .venv`` then
+   - macOS/Linux (bash or zsh): ``python3.12 -m venv .venv`` then
      ``source .venv/bin/activate``
 2. Upgrade packaging tooling and install dependencies:
    ``python -m pip install --upgrade pip``
-   ``python -m pip install "numpy<2"``
-   ``python -m pip install -r requirements.txt``.
+   ``python -m pip install -r requirements.txt``
 3. Install FFmpeg (Windows builds from Gyan.dev, ``brew install ffmpeg`` on
    macOS, or ``sudo apt install ffmpeg`` on Debian/Ubuntu) and confirm the
    command works with ``ffmpeg -version``.
@@ -112,9 +124,8 @@ Optional API Integration
 
 Quick Setup Cheatsheet
 ----------------------
-- ``python -m venv .venv`` → activate it for your platform.
+- ``python3.12 -m venv .venv`` → activate it for your platform.
 - ``python -m pip install --upgrade pip``
-- ``python -m pip install "numpy<2"``
 - ``python -m pip install -r requirements.txt``
 - Ensure ``ffmpeg -version`` succeeds, then run ``python transcribe.py`` or
   ``python tts.py`` as needed.
@@ -126,8 +137,8 @@ Troubleshooting Tips
 - ``ImportError`` for ``sentencepiece`` or ``soundfile`` when running
   ``tts.py``: reinstall dependencies via
   ``python -m pip install -r requirements.txt``.
-- NumPy 2.x accidentally installed: reinstall the compatible release with
-  ``python -m pip install "numpy<2"`` before running the toolkit again.
+- NumPy 2.x accidentally installed: reinstall the pinned release with
+  ``python -m pip install "numpy==1.26.4"`` before running the toolkit again.
 - PyTorch installation issues on Windows: install the CPU wheel
   ``python -m pip install torch
   --index-url https://download.pytorch.org/whl/cpu``.

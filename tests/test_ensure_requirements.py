@@ -77,7 +77,7 @@ def test_missing_requirements_identifies_unsatisfied(tmp_path: Path) -> None:
 def test_synchronize_environment_installs_and_verifies(tmp_path: Path) -> None:
     project_root = tmp_path
     requirements_path = project_root / "requirements.txt"
-    requirements_path.write_text("numpy<2\nalpha\nbeta\n")
+    requirements_path.write_text("numpy==1.26.4\nalpha\nbeta\n")
 
     venv_path = project_root / ".venv"
     python_dir = venv_path / "bin"
@@ -141,7 +141,7 @@ def test_synchronize_environment_installs_and_verifies(tmp_path: Path) -> None:
 def test_synchronize_environment_skips_install_when_satisfied(tmp_path: Path) -> None:
     project_root = tmp_path
     requirements_path = project_root / "requirements.txt"
-    requirements_path.write_text("numpy<2\nalpha\nbeta\n")
+    requirements_path.write_text("numpy==1.26.4\nalpha\nbeta\n")
 
     venv_path = project_root / ".venv"
     python_dir = venv_path / "bin"

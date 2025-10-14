@@ -70,7 +70,7 @@ def _read_pyvenv_version(venv_path: Path) -> tuple[int, int] | None:
     return None
 
 
-NUMPY_PINNED_SPEC = "numpy<2"
+NUMPY_PINNED_SPEC = "numpy==1.26.4"
 
 
 DEFAULT_VALIDATION_PACKAGES: tuple[str, ...] = (
@@ -448,20 +448,20 @@ def _ensure_supported_numpy(version: str) -> None:
     if not normalized:
         raise SetupError(
             "Unable to determine the installed NumPy version. "
-            "Reinstall NumPy with `python -m pip install \"numpy<2\"` and retry."
+            f"Reinstall NumPy with `python -m pip install \"{NUMPY_PINNED_SPEC}\"` and retry."
         )
     match = re.match(r"(\d+)\.(\d+)", normalized)
     if not match:
         raise SetupError(
             "Could not parse the NumPy version string "
-            f"'{version}'. Reinstall NumPy with `python -m pip install \"numpy<2\"`."
+            f"'{version}'. Reinstall NumPy with `python -m pip install \"{NUMPY_PINNED_SPEC}\"`."
         )
     major = int(match.group(1))
     if major >= 2:
         raise SetupError(
             "Detected NumPy version "
             f"{normalized}. The toolkit requires {NUMPY_PINNED_SPEC} for compatibility. "
-            "Run `python -m pip install \"numpy<2\"` inside the virtual environment."
+            f"Run `python -m pip install \"{NUMPY_PINNED_SPEC}\"` inside the virtual environment."
         )
 
 

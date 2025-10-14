@@ -73,7 +73,7 @@ class FakeRunner:
 def _requirements_file(tmp_path: Path) -> Path:
     """Create a temporary requirements.txt file for testing."""
     path = tmp_path / "requirements.txt"
-    path.write_text("numpy<2\n")
+    path.write_text("numpy==1.26.4\n")
     return path
 
 
@@ -297,7 +297,7 @@ def test_verify_installation_rejects_numpy_two(tmp_path: Path) -> None:
             runner=runner,
         )
 
-    assert "numpy<2" in str(error.value)
+    assert "numpy==1.26.4" in str(error.value)
 
 
 def test_verify_installation_failure(tmp_path: Path) -> None:
@@ -349,15 +349,19 @@ def test_main_writes_rotating_log_with_packages(monkeypatch, tmp_path: Path) -> 
     log_path = tmp_path / "logs" / "test_setup_env.log"
     monkeypatch.setenv(setup_env.LOG_PATH_ENV_VAR, str(log_path))
 
+    package_names = tuple(
+        setup_env.read_required_packages(
+            setup_env.PROJECT_ROOT / "requirements.txt"
+        ).keys()
+    ) or setup_env.DEFAULT_VALIDATION_PACKAGES
+
     responses = deque(
         [
             "Python 3.11.0",
             "pip 23.0",
             *(
-                "1.26.4"
-                if name == "numpy"
-                else f"{name}-version"
-                for name in setup_env.DEFAULT_VALIDATION_PACKAGES
+                "1.26.4" if name == "numpy" else f"{name}-version"
+                for name in package_names
             ),
         ]
     )
@@ -385,7 +389,7 @@ def test_main_writes_rotating_log_with_packages(monkeypatch, tmp_path: Path) -> 
     assert log_path.exists(), "Expected log file to be created"
     log_contents = log_path.read_text(encoding="utf-8")
 
-    for package in setup_env.DEFAULT_VALIDATION_PACKAGES:
+    for package in package_names:
         assert package in log_contents
     assert "INSTALLATION_SUMMARY" in log_contents
 
