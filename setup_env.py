@@ -12,6 +12,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Iterable, Protocol
 
+from logging.handlers import RotatingFileHandler
+
 
 class CommandRunner(Protocol):
     """Protocol to allow dependency injection for subprocess execution."""
@@ -32,6 +34,11 @@ class SetupError(RuntimeError):
 
 
 MINIMUM_SUPPORTED_PYTHON = (3, 10)
+
+
+PROJECT_ROOT = Path(__file__).resolve().parent
+DEFAULT_LOG_PATH = PROJECT_ROOT / "logs" / "setup_env.log"
+LOG_PATH_ENV_VAR = "SETUP_ENV_LOG_PATH"
 
 
 DEFAULT_VALIDATION_PACKAGES: tuple[str, ...] = (
@@ -65,12 +72,49 @@ ANSI_COLORS = {
 }
 
 
-def configure_logging() -> None:
-    """Configure application logging to show concise, informative messages."""
-    logging.basicConfig(
-        level=logging.INFO,
-        format="[%(levelname)s] %(message)s",
+def configure_logging(log_path: Path | None = None) -> Path:
+    """Configure application logging with both console and file handlers."""
+
+    if log_path is None:
+        env_override = os.getenv(LOG_PATH_ENV_VAR)
+        if env_override:
+            candidate = Path(env_override).expanduser()
+            if not candidate.is_absolute():
+                candidate = (PROJECT_ROOT / candidate).resolve()
+        else:
+            candidate = DEFAULT_LOG_PATH
+    else:
+        candidate = Path(log_path).expanduser()
+        if not candidate.is_absolute():
+            candidate = (PROJECT_ROOT / candidate).resolve()
+
+    candidate.parent.mkdir(parents=True, exist_ok=True)
+
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+    logger.handlers.clear()
+
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    console_formatter = logging.Formatter("[%(levelname)s] %(message)s")
+    console_handler.setFormatter(console_formatter)
+
+    file_handler = RotatingFileHandler(
+        candidate,
+        maxBytes=1_048_576,
+        backupCount=5,
+        encoding="utf-8",
     )
+    file_handler.setLevel(logging.INFO)
+    file_formatter = logging.Formatter(
+        "%(asctime)s | %(levelname)s | %(name)s | %(message)s"
+    )
+    file_handler.setFormatter(file_formatter)
+
+    logger.addHandler(console_handler)
+    logger.addHandler(file_handler)
+
+    return candidate
 
 
 def colorize(message: str, color: str) -> str:
@@ -210,8 +254,9 @@ def verify_installation(
     Returns:
         dict: Dictionary mapping package names to their installed versions.
     """
-    python_version = run_command([str(venv_python), "--version"],
-                                 capture_output=True, runner=runner)
+    python_version = run_command(
+        [str(venv_python), "--version"], capture_output=True, runner=runner
+    )
     logging.info("Python interpreter: %s", python_version)
 
     pip_version = run_command(
@@ -236,6 +281,15 @@ def verify_installation(
         )
         logging.info("Verified %s %s", package, version or "installed")
         installed_packages[package] = version or "installed"
+
+    summary = {
+        "python": python_version,
+        "pip": pip_version,
+        "packages": installed_packages,
+    }
+    logging.getLogger(__name__).info(
+        "INSTALLATION_SUMMARY %s", json.dumps(summary, sort_keys=True)
+    )
 
     return installed_packages
 
@@ -268,8 +322,9 @@ def write_setup_log(
 def main() -> int:
     """Entry point used when executing the setup script from the CLI."""
     ensure_supported_python()
-    configure_logging()
-    project_root = Path(__file__).resolve().parent
+    log_path = configure_logging()
+    logging.info("Logging setup output to %s", log_path)
+    project_root = PROJECT_ROOT
     venv_path = project_root / ".venv"
     requirements_path = project_root / "requirements.txt"
     setup_log_path = project_root / ".setup_log.json"
