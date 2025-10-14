@@ -245,6 +245,29 @@ def diagnose_numpy(
     )
 
 
+def diagnose_ffmpeg(*, which: ExecutableLocator | None = None) -> DiagnosticResult:
+    """Check whether an FFmpeg executable is available on ``PATH``."""
+
+    ffmpeg = locate_executable(("ffmpeg", "ffmpeg.exe"), which=which)
+    if ffmpeg:
+        return DiagnosticResult(
+            name="ffmpeg",
+            status="available",
+            details=f"Executable located at {ffmpeg}",
+        )
+
+    recommendation = (
+        "Install FFmpeg with one of the following options: 'brew install ffmpeg' on macOS, "
+        "'sudo apt install ffmpeg' on Debian/Ubuntu, or 'pip install \"imageio[ffmpeg]\"' for a Python-managed build."
+    )
+    return DiagnosticResult(
+        name="ffmpeg",
+        status="unavailable",
+        details="No FFmpeg executable found on PATH.",
+        recommendation=recommendation,
+    )
+
+
 def render_results(results: Sequence[DiagnosticResult]) -> str:
     """Return a human-readable summary of diagnostic *results*."""
 
@@ -260,7 +283,8 @@ def render_results(results: Sequence[DiagnosticResult]) -> str:
 def main(argv: Sequence[str] | None = None) -> int:
     """Entry point that prints JSON or text diagnostics based on *argv*."""
 
-    args = list(argv or sys.argv[1:])
+    args_source = argv if argv is not None else sys.argv[1:]
+    args = list(args_source)
     as_json = "--json" in args
     if as_json:
         args.remove("--json")
@@ -275,6 +299,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     results = [
         diagnose_python_version(),
         diagnose_numpy(),
+        diagnose_ffmpeg(),
         diagnose_markitdown(),
         diagnose_whisper(),
     ]

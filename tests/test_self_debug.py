@@ -109,7 +109,29 @@ def test_diagnose_numpy_missing() -> None:
     assert "numpy<2" in (result.recommendation or "")
 
 
+def test_diagnose_ffmpeg_available(tmp_path) -> None:
+    ffmpeg_path = str(tmp_path / "ffmpeg")
+
+    result = self_debug.diagnose_ffmpeg(which=_build_which({"ffmpeg": ffmpeg_path}))
+
+    assert result.status == "available"
+    assert ffmpeg_path in result.details
+
+
+def test_diagnose_ffmpeg_unavailable() -> None:
+    result = self_debug.diagnose_ffmpeg(which=_build_which({}))
+
+    assert result.status == "unavailable"
+    assert "brew install ffmpeg" in (result.recommendation or "")
+
+
 def test_main_respects_json_flag(monkeypatch, capsys) -> None:
+    python_result = self_debug.DiagnosticResult(
+        name="python",
+        status="available",
+        details="python",
+        recommendation=None,
+    )
     markitdown_result = self_debug.DiagnosticResult(
         name="markitdown",
         status="available",
@@ -128,7 +150,15 @@ def test_main_respects_json_flag(monkeypatch, capsys) -> None:
         details="module",
         recommendation=None,
     )
+    ffmpeg_result = self_debug.DiagnosticResult(
+        name="ffmpeg",
+        status="available",
+        details="/usr/bin/ffmpeg",
+        recommendation=None,
+    )
+    monkeypatch.setattr(self_debug, "diagnose_python_version", lambda: python_result)
     monkeypatch.setattr(self_debug, "diagnose_numpy", lambda: numpy_result)
+    monkeypatch.setattr(self_debug, "diagnose_ffmpeg", lambda: ffmpeg_result)
     monkeypatch.setattr(self_debug, "diagnose_markitdown", lambda: markitdown_result)
     monkeypatch.setattr(self_debug, "diagnose_whisper", lambda: whisper_result)
 
@@ -138,11 +168,18 @@ def test_main_respects_json_flag(monkeypatch, capsys) -> None:
     output = capsys.readouterr().out
     assert "markitdown" in output
     assert "numpy" in output
+    assert "ffmpeg" in output
     assert "whisper" in output
     assert output.strip().startswith("[")
 
 
 def test_main_handles_error_status(monkeypatch, capsys) -> None:
+    python_result = self_debug.DiagnosticResult(
+        name="python",
+        status="available",
+        details="python",
+        recommendation=None,
+    )
     markitdown_result = self_debug.DiagnosticResult(
         name="markitdown",
         status="unavailable",
@@ -161,7 +198,15 @@ def test_main_handles_error_status(monkeypatch, capsys) -> None:
         details="module",
         recommendation=None,
     )
+    ffmpeg_result = self_debug.DiagnosticResult(
+        name="ffmpeg",
+        status="available",
+        details="/usr/bin/ffmpeg",
+        recommendation=None,
+    )
+    monkeypatch.setattr(self_debug, "diagnose_python_version", lambda: python_result)
     monkeypatch.setattr(self_debug, "diagnose_numpy", lambda: numpy_result)
+    monkeypatch.setattr(self_debug, "diagnose_ffmpeg", lambda: ffmpeg_result)
     monkeypatch.setattr(self_debug, "diagnose_markitdown", lambda: markitdown_result)
     monkeypatch.setattr(self_debug, "diagnose_whisper", lambda: whisper_result)
 
