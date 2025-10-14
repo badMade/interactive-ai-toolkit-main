@@ -218,17 +218,17 @@ class TestTranscribe(unittest.TestCase):
         with self.assertRaises(FileNotFoundError):
             transcribe.configure_certificate_bundle("missing.pem")
 
-    @patch("transcribe.ffmpeg_support.ensure_ffmpeg_available")
+    @patch("transcribe.ensure_system_ffmpeg_available")
     def test_ensure_ffmpeg_available_success(self, mock_ensure):
         """The helper should return silently when ffmpeg is available."""
 
         ensure_ffmpeg_available()
-        mock_ensure.assert_called_once_with()
+        mock_ensure.assert_called_once_with(allow_auto_install=False)
 
     @patch(
-        "transcribe.ffmpeg_support.ensure_ffmpeg_available",
-        side_effect=transcribe.ffmpeg_support.FFmpegInstallationError(
-            transcribe.FFMPEG_INSTALL_MESSAGE
+        "transcribe.ensure_system_ffmpeg_available",
+        side_effect=transcribe.FFmpegInstallationError(
+            "Automatic installation failed"
         ),
     )
     def test_ensure_ffmpeg_available_failure(self, mock_ensure):
@@ -237,8 +237,10 @@ class TestTranscribe(unittest.TestCase):
         with self.assertRaises(SystemExit) as exit_info:
             ensure_ffmpeg_available()
 
-        mock_ensure.assert_called_once_with()
-        self.assertEqual(exit_info.exception.code, transcribe.FFMPEG_INSTALL_MESSAGE)
+        mock_ensure.assert_called_once_with(allow_auto_install=False)
+        message = str(exit_info.exception)
+        self.assertIn("Automatic installation failed", message)
+        self.assertIn("ffmpeg is required", message)
 
 
 if __name__ == "__main__":

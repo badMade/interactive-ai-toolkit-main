@@ -16,7 +16,11 @@ from typing import Iterable, Protocol
 from logging.handlers import RotatingFileHandler
 
 from compatibility import NumpyCompatibilityError, validate_numpy_version
-import ffmpeg_support
+from ffmpeg_support import (
+    FFMPEG_INSTALL_MESSAGE,
+    FFmpegInstallationError,
+    ensure_ffmpeg_available as ensure_system_ffmpeg_available,
+)
 from run import SETUP_LOG_RELATIVE_PATH, read_required_packages
 from shared_messages import MISSING_WHISPER_MESSAGE
 
@@ -266,9 +270,22 @@ def ensure_ffmpeg_available(*, runner: CommandRunner | None = None) -> None:
     """Verify that FFmpeg is available on the host system."""
 
     try:
-        ffmpeg_support.ensure_ffmpeg_available(runner=runner)
-    except ffmpeg_support.FFmpegInstallationError as exc:
-        raise SetupError(str(exc)) from exc
+        output = ensure_system_ffmpeg_available(runner=runner)
+    except FFmpegInstallationError as error:
+        details = str(error).strip()
+        if details and details != FFMPEG_INSTALL_MESSAGE:
+            message = f"{details}\n{FFMPEG_INSTALL_MESSAGE}"
+        else:
+            message = FFMPEG_INSTALL_MESSAGE
+        raise SetupError(message) from error
+
+    if output:
+        for line in output.splitlines():
+            logging.info("%s", line)
+
+    detected = shutil.which("ffmpeg")
+    if detected:
+        logging.info("FFmpeg detected at %s", detected)
 
 
 def ensure_requirements_file(requirements_path: Path) -> Path:

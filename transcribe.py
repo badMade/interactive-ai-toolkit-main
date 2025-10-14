@@ -15,7 +15,11 @@ from types import ModuleType
 from typing import Any, Dict
 
 from compatibility import ensure_numpy_compatible, NumpyCompatibilityError
-import ffmpeg_support
+from ffmpeg_support import (
+    FFMPEG_INSTALL_MESSAGE,
+    FFmpegInstallationError,
+    ensure_ffmpeg_available as ensure_system_ffmpeg_available,
+)
 from shared_messages import MISSING_WHISPER_MESSAGE
 
 
@@ -44,14 +48,6 @@ def load_whisper_module() -> ModuleType:
 
 DEFAULT_AUDIO = "lesson_recording.mp3"
 DEFAULT_MODEL = "base"
-
-FFMPEG_INSTALL_MESSAGE = (
-    "FFmpeg is required to transcribe audio. It can be installed automatically "
-    "by running `scripts/install_ffmpeg.sh`, via common package managers such as "
-    "`brew install ffmpeg` or `sudo apt-get install ffmpeg`, or by running "
-    "`pip install imageio[ffmpeg]` to use a Python-managed binary."
-)
-
 
 def parse_arguments() -> Namespace:
     """Parse command-line options for the transcription script.
@@ -114,10 +110,14 @@ def ensure_ffmpeg_available() -> None:
     """Verify that the ffmpeg executable is present on the system path."""
 
     try:
-        ffmpeg_support.ensure_ffmpeg_available()
-    except ffmpeg_support.FFmpegInstallationError as exc:
-        message = str(exc) or FFMPEG_INSTALL_MESSAGE
-        raise SystemExit(message) from None
+        ensure_system_ffmpeg_available(allow_auto_install=False)
+    except FFmpegInstallationError as exc:
+        details = str(exc).strip()
+        if details and details != FFMPEG_INSTALL_MESSAGE:
+            message = f"{details}\n{FFMPEG_INSTALL_MESSAGE}"
+        else:
+            message = FFMPEG_INSTALL_MESSAGE
+        raise SystemExit(message) from exc
 
 
 def configure_certificate_bundle(raw_bundle_path: str | None) -> None:

@@ -1,16 +1,26 @@
-"""Utility helpers to detect and install FFmpeg when missing."""
+"""Utilities for ensuring FFmpeg is available on the host system."""
 from __future__ import annotations
 
-import logging
 import os
 import subprocess
-import sys
 from pathlib import Path
 from typing import Protocol
 
 
+PROJECT_ROOT = Path(__file__).resolve().parent
+INSTALL_SCRIPT_RELATIVE_PATH = Path("scripts") / "install_ffmpeg.sh"
+
+FFMPEG_INSTALL_MESSAGE = (
+    "ffmpeg is required to transcribe audio. "
+    "Run scripts/install_ffmpeg.sh or install it with Homebrew (`brew install ffmpeg`) "
+    "or apt (`sudo apt-get install ffmpeg`). Alternatively, run `pip install imageio[ffmpeg]` "
+    "to install a Python-managed binary. On Windows, install FFmpeg from "
+    "https://ffmpeg.org/download.html or run `winget install Gyan.FFmpeg`."
+)
+
+
 class CommandRunner(Protocol):
-    """Protocol representing the subset of ``subprocess.run`` we rely upon."""
+    """Protocol matching the subset of ``subprocess.run`` used in this module."""
 
     def __call__(
         self,
@@ -25,11 +35,11 @@ class CommandRunner(Protocol):
 
 
 class FFmpegInstallationError(RuntimeError):
-    """Raised when FFmpeg cannot be located or installed automatically."""
+    """Raised when FFmpeg cannot be installed or detected."""
 
 
-_PROJECT_ROOT = Path(__file__).resolve().parent
-_INSTALL_SCRIPT = _PROJECT_ROOT / "scripts" / "install_ffmpeg.sh"
+def _default_install_script_path() -> Path:
+    return PROJECT_ROOT / INSTALL_SCRIPT_RELATIVE_PATH
 
 
 def _default_runner(
@@ -40,9 +50,7 @@ def _default_runner(
     capture_output: bool,
     env: dict[str, str] | None = None,
 ) -> subprocess.CompletedProcess[str]:
-    """Invoke ``subprocess.run`` with the expected keyword arguments."""
-
-    return subprocess.run(  # noqa: PLW1510 - intended to propagate exceptions
+    return subprocess.run(  # noqa: PLW1510 - allow exceptions to surface
         command,
         check=check,
         text=text,
@@ -58,7 +66,7 @@ def _run_command(
     runner: CommandRunner | None = None,
     env: dict[str, str] | None = None,
 ) -> str:
-    """Execute *command* and return combined stdout/stderr when captured."""
+    """Execute *command* and return combined stdout/stderr when requested."""
 
     active_runner = runner or _default_runner
     try:
@@ -89,68 +97,76 @@ def _run_command(
     return ""
 
 
-def _windows_guidance() -> str:
-    """Return installation guidance tailored for Windows environments."""
+def _build_install_command(script_path: Path) -> list[str]:
+    if os.name != "posix":
+        raise FFmpegInstallationError(
+            "Automatic FFmpeg installation is only supported on POSIX systems."
+        )
+    if not script_path.exists():
+        raise FFmpegInstallationError(
+            f"FFmpeg install script not found at {script_path}."
+        )
 
-    return (
-        "FFmpeg is required but was not detected. Install it from "
-        "https://ffmpeg.org/download.html or run `winget install Gyan.FFmpeg`."
-    )
-
-
-def _posix_guidance() -> str:
-    """Return a concise description of the supported POSIX installation path."""
-
-    return (
-        "FFmpeg is required but automatic installation is only supported on "
-        "POSIX-compliant systems. Install FFmpeg manually from "
-        "https://ffmpeg.org/download.html."
-    )
+    if os.access(script_path, os.X_OK):
+        return [str(script_path)]
+    return ["bash", str(script_path)]
 
 
-def ensure_ffmpeg_available(*, runner: CommandRunner | None = None) -> None:
-    """Ensure that FFmpeg is installed, invoking the bundled script if needed."""
+def install_ffmpeg(
+    *,
+    script_path: Path | None = None,
+    runner: CommandRunner | None = None,
+) -> str:
+    """Execute the bundled installation script and return its output."""
+
+    resolved_script = script_path or _default_install_script_path()
+    command = _build_install_command(resolved_script)
+    return _run_command(command, capture_output=True, runner=runner)
+
+
+def ensure_ffmpeg_available(
+    *,
+    allow_auto_install: bool = True,
+    script_path: Path | None = None,
+    runner: CommandRunner | None = None,
+) -> str | None:
+    """Ensure FFmpeg is available, optionally installing it automatically."""
+
+    def _probe() -> str:
+        return _run_command(
+            ["ffmpeg", "-version"],
+            capture_output=True,
+            runner=runner,
+        )
 
     try:
-        version_output = _run_command(
-            ["ffmpeg", "-version"],
-            capture_output=True,
-            runner=runner,
-        )
-        if version_output:
-            logging.info("FFmpeg detected: %s", version_output.splitlines()[0])
-        return
+        version_output = _probe()
+        return version_output or None
     except FFmpegInstallationError as probe_error:
-        platform = sys.platform.lower()
-        is_windows = os.name == "nt" or platform.startswith("win")
-        if is_windows:
-            raise FFmpegInstallationError(_windows_guidance()) from probe_error
-
-        if os.name != "posix":
-            raise FFmpegInstallationError(_posix_guidance()) from probe_error
-
-        if not _INSTALL_SCRIPT.is_file():
-            raise FFmpegInstallationError(
-                "FFmpeg is required but the installer script is missing."
-            ) from probe_error
+        if not allow_auto_install:
+            raise FFmpegInstallationError(FFMPEG_INSTALL_MESSAGE) from probe_error
 
         try:
-            _run_command([str(_INSTALL_SCRIPT)], capture_output=False, runner=runner)
-        except FFmpegInstallationError as install_error:
+            install_output = install_ffmpeg(
+                script_path=script_path,
+                runner=runner,
+            )
+        except FFmpegInstallationError as error:
             raise FFmpegInstallationError(
-                "FFmpeg is required but automatic installation failed.\n"
-                f"{install_error}"
-            ) from install_error
+                f"Automatic FFmpeg installation failed.\n{error}"
+            ) from error
 
-        version_output = _run_command(
-            ["ffmpeg", "-version"],
-            capture_output=True,
-            runner=runner,
-        )
-        if version_output:
-            logging.info("FFmpeg installed: %s", version_output.splitlines()[0])
-            return
+        try:
+            version_output = _probe()
+        except FFmpegInstallationError as verify_error:
+            raise FFmpegInstallationError(
+                "FFmpeg installation completed but verification failed."
+            ) from verify_error
 
-        raise FFmpegInstallationError(
-            "FFmpeg installation did not succeed even after running the installer."
+        combined = "\n".join(
+            piece.strip()
+            for piece in (install_output, version_output)
+            if piece and piece.strip()
         )
+        return combined or None
+

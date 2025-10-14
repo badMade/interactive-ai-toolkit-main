@@ -218,7 +218,6 @@ def test_ensure_ffmpeg_available_windows_guidance(monkeypatch) -> None:
     monkeypatch.setattr(setup_env.os, "name", "nt", raising=False)
     monkeypatch.setattr(setup_env.sys, "platform", "win32", raising=False)
     monkeypatch.setattr(ffmpeg_support.os, "name", "nt", raising=False)
-    monkeypatch.setattr(ffmpeg_support.sys, "platform", "win32", raising=False)
 
     with pytest.raises(setup_env.SetupError) as error:
         setup_env.ensure_ffmpeg_available(runner=runner)
@@ -241,7 +240,6 @@ def test_ensure_ffmpeg_available_triggers_script(monkeypatch) -> None:
     monkeypatch.setattr(setup_env.os, "name", "posix", raising=False)
     monkeypatch.setattr(setup_env.sys, "platform", "linux", raising=False)
     monkeypatch.setattr(ffmpeg_support.os, "name", "posix", raising=False)
-    monkeypatch.setattr(ffmpeg_support.sys, "platform", "linux", raising=False)
 
     setup_env.ensure_ffmpeg_available(runner=runner)
 
@@ -270,13 +268,12 @@ def test_ensure_ffmpeg_available_script_failure(monkeypatch) -> None:
     monkeypatch.setattr(setup_env.os, "name", "posix", raising=False)
     monkeypatch.setattr(setup_env.sys, "platform", "linux", raising=False)
     monkeypatch.setattr(ffmpeg_support.os, "name", "posix", raising=False)
-    monkeypatch.setattr(ffmpeg_support.sys, "platform", "linux", raising=False)
 
     with pytest.raises(setup_env.SetupError) as error:
         setup_env.ensure_ffmpeg_available(runner=runner)
 
     message = str(error.value)
-    assert "automatic installation failed" in message
+    assert "Automatic FFmpeg installation failed" in message
     assert "installation failed" in message
 
 
