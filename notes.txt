@@ -26,14 +26,15 @@ Installation Instructions
      ``source .venv/bin/activate``
    - Verify the interpreter release with ``python3.12 --version`` before continuing.
 2. Upgrade pip: ``python -m pip install --upgrade pip``
-3. Install dependencies: ``python -m pip install -r requirements.txt``
+3. Install NumPy with the compatibility pin: ``python -m pip install "numpy<2"``
+4. Install the remaining dependencies: ``python -m pip install -r requirements.txt``
    - Note: When the CLI reports ``OpenAI Whisper is not installed. Install it with 'pip install openai-whisper' or run setup_env.py to configure the environment.``, run ``pip install openai-whisper`` in the active environment to add the missing package.
-4. Install FFmpeg (required for Whisper audio decoding).
+5. Install FFmpeg (required for Whisper audio decoding).
    - Windows: download from https://www.gyan.dev/ffmpeg/builds/ and add
      ``ffmpeg.exe`` to PATH or copy it beside ``transcribe.py``
    - macOS: ``brew install ffmpeg``
    - Linux: ``sudo apt install ffmpeg``
-5. (Optional) Install the OpenAI Python client:
+6. (Optional) Install the OpenAI Python client:
     ``python -m pip install openai``
 
 Why Some Files Are Not Tracked
@@ -62,6 +63,7 @@ Hands-on Walkthrough
    - Verify the interpreter release with ``python3.12 --version`` before continuing.
 2. Upgrade packaging tooling and install dependencies:
    ``python -m pip install --upgrade pip`` followed by
+   ``python -m pip install "numpy<2"`` and
    ``python -m pip install -r requirements.txt``.
 3. Install FFmpeg (Windows builds from Gyan.dev, ``brew install ffmpeg`` on
    macOS, or ``sudo apt install ffmpeg`` on Debian/Ubuntu) and confirm the
@@ -95,6 +97,7 @@ Quick Setup Cheatsheet
 ----------------------
 - ``python3.12 -m venv .venv`` → activate it for your platform.
 - ``python -m pip install --upgrade pip``
+- ``python -m pip install "numpy<2"``
 - ``python -m pip install -r requirements.txt``
 - Ensure ``ffmpeg -version`` succeeds, then run ``python transcribe.py`` or
   ``python tts.py`` as needed.
@@ -106,6 +109,7 @@ Troubleshooting Tips
   installed and accessible via PATH; verify with ``ffmpeg -version``.
 - ``ImportError`` for ``sentencepiece`` or ``soundfile`` when running
   ``tts.py``: reinstall dependencies via
+  ``python -m pip install "numpy<2"`` and
   ``python -m pip install -r requirements.txt``.
 - PyTorch installation issues on Windows: install the CPU wheel
   ``python -m pip install torch

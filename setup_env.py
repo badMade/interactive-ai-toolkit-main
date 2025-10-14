@@ -6,12 +6,13 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import shutil
 import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Iterable, Protocol
+from typing import Iterable, Mapping, Protocol
 
 from logging.handlers import RotatingFileHandler
 
@@ -78,6 +79,50 @@ DEFAULT_VALIDATION_PACKAGES: tuple[str, ...] = (
     "numpy",
     "pytest",
 )
+
+NUMPY_REQUIREMENT = "numpy<2"
+
+_NUMPY_UPPER_BOUND_PATTERN = re.compile(r"(?i)^numpy\s*<\s*([0-9][0-9A-Za-z._-]*)")
+
+
+def _parse_version_tuple(value: str) -> tuple[int, ...]:
+    """Return a tuple of integers extracted from *value* for comparison."""
+
+    parts: list[int] = []
+    for token in re.split(r"[._+-]", value):
+        if not token:
+            continue
+        digits = []
+        for char in token:
+            if char.isdigit():
+                digits.append(char)
+            else:
+                break
+        if not digits:
+            break
+        parts.append(int("".join(digits)))
+    if not parts:
+        raise SetupError(
+            f"Unable to parse version '{value}' while validating dependencies."
+        )
+    return tuple(parts)
+
+
+def _ensure_numpy_requirement_met(version: str, requirement: str) -> None:
+    """Raise :class:`SetupError` when *version* violates *requirement*."""
+
+    match = _NUMPY_UPPER_BOUND_PATTERN.match(requirement.strip())
+    if not match:
+        return
+    upper_bound = _parse_version_tuple(match.group(1))
+    installed = _parse_version_tuple(version)
+    if installed >= upper_bound:
+        raise SetupError(
+            "NumPy version "
+            f"{version} does not satisfy the constraint {requirement}. "
+            "Run 'python -m pip install \"numpy<2\"' inside the virtual "
+            "environment and retry."
+        )
 
 
 def ensure_supported_python() -> None:
@@ -362,6 +407,14 @@ def install_requirements(
                  "install",
                  "--upgrade",
                  "pip"], runner=runner)
+    logging.info("Installing %s to maintain compatibility", NUMPY_REQUIREMENT)
+    run_command([
+        str(venv_python),
+        "-m",
+        "pip",
+        "install",
+        NUMPY_REQUIREMENT,
+    ], runner=runner)
     logging.info("Installing dependencies from requirements.txt")
     run_command(
         [str(venv_python),
@@ -376,7 +429,7 @@ def install_requirements(
 
 def verify_installation(
     venv_python: Path,
-    packages: Iterable[str],
+    packages: Mapping[str, str] | Iterable[str],
     *,
     runner: CommandRunner | None = None,
 ) -> dict[str, str]:
@@ -398,8 +451,13 @@ def verify_installation(
     )
     logging.info("pip version: %s", pip_version)
 
-    installed_packages = {}
-    for package in packages:
+    if isinstance(packages, Mapping):
+        package_items = packages.items()
+    else:
+        package_items = ((package, "") for package in packages)
+
+    installed_packages: dict[str, str] = {}
+    for package, requirement in package_items:
         code = (
             "import importlib; "
             f"module = importlib.import_module('{package}'); "
@@ -420,8 +478,11 @@ def verify_installation(
                     guidance = f"{guidance}\nOriginal error: {details}"
                 raise SetupError(guidance) from exc
             raise
-        logging.info("Verified %s %s", package, version or "installed")
-        installed_packages[package] = version or "installed"
+        cleaned_version = (version or "installed").strip()
+        if package.lower() == "numpy" and requirement:
+            _ensure_numpy_requirement_met(cleaned_version, requirement)
+        logging.info("Verified %s %s", package, cleaned_version or "installed")
+        installed_packages[package] = cleaned_version or "installed"
 
     summary = {
         "python": python_version,
@@ -479,11 +540,13 @@ def main() -> int:
         venv_python = get_venv_python_path(venv_path)
         install_requirements(venv_python, requirements_path)
         required_packages = read_required_packages(requirements_path)
-        packages_to_verify: tuple[str, ...]
         if required_packages:
-            packages_to_verify = tuple(required_packages.keys())
+            packages_to_verify: Mapping[str, str] | Iterable[str] = required_packages
         else:
-            packages_to_verify = DEFAULT_VALIDATION_PACKAGES
+            packages_to_verify = {
+                package: NUMPY_REQUIREMENT if package.lower() == "numpy" else ""
+                for package in DEFAULT_VALIDATION_PACKAGES
+            }
 
         installed_packages = verify_installation(
             venv_python,

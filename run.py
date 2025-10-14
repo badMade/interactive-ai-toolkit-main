@@ -87,17 +87,21 @@ def read_required_packages(requirements_path: Path) -> dict[str, str]:
             stripped = raw_line.strip()
             if not stripped or stripped.startswith("#"):
                 continue
-            candidate = stripped.split("#", 1)[0].strip()
-            candidate = candidate.split(";", 1)[0].strip()
-            for delimiter in ("==", ">=", "<=", "~=", "!=", ">", "<"):
-                if delimiter in candidate:
-                    candidate = candidate.split(delimiter, 1)[0].strip()
-            if "[" in candidate:
-                candidate = candidate.split("[", 1)[0].strip()
-            if not candidate:
+            requirement = stripped.split("#", 1)[0].strip()
+            requirement = requirement.split(";", 1)[0].strip()
+            if not requirement:
                 continue
-            canonical = _canonical_package_name(candidate)
-            cleaned[canonical] = candidate
+            name_fragment = requirement
+            for delimiter in ("==", ">=", "<=", "~=", "!=", ">", "<"):
+                if delimiter in name_fragment:
+                    name_fragment = name_fragment.split(delimiter, 1)[0].strip()
+                    break
+            if "[" in name_fragment:
+                name_fragment = name_fragment.split("[", 1)[0].strip()
+            if not name_fragment:
+                continue
+            canonical = _canonical_package_name(name_fragment)
+            cleaned[canonical] = requirement
     return cleaned
 
 

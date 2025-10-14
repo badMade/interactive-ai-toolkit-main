@@ -81,8 +81,14 @@ python3.12 --version
 
 ```bash
 python -m pip install --upgrade pip
+python -m pip install "numpy<2"
 python -m pip install -r requirements.txt
 ```
+
+> **Why pin NumPy below 2.0?** Whisper and SpeechT5 depend on libraries that
+> are still transitioning to the NumPy 2 API. Installing `numpy<2` ahead of the
+> rest of the requirements ensures a compatible build is present before other
+> packages resolve their dependencies.
 
 > **Note:** When the CLI reports `OpenAI Whisper is not installed. Install it with 'pip install openai-whisper' or run setup_env.py to configure the environment.`, run `pip install openai-whisper` in your active environment to install the missing dependency.
 
@@ -118,6 +124,7 @@ an alternative to local transcription.
 
    ```bash
    python -m pip install --upgrade pip
+   python -m pip install "numpy<2"
    python -m pip install -r requirements.txt
    ```
 
@@ -240,6 +247,7 @@ results than local hardware can provide.
 
 - `python3.12 -m venv .venv` and activate it for your platform.
 - `python -m pip install --upgrade pip`
+- `python -m pip install "numpy<2"`
 - `python -m pip install -r requirements.txt`
 - Confirm `ffmpeg -version` works, then run `python transcribe.py` or `python tts.py`.
 
@@ -262,7 +270,7 @@ results than local hardware can provide.
 | `FileNotFoundError: Audio file not found` | Incorrect path supplied to `transcribe.py` | Provide the full audio path or copy the file into the repository root. |
 | CLI exits with `OpenAI Whisper is not installed. Install it with 'pip install openai-whisper' or run setup_env.py to configure the environment.` | Whisper dependency missing from the environment | Install Whisper with `pip install openai-whisper` or run `python setup_env.py` to prepare the virtual environment. |
 | `ffmpeg` errors | FFmpeg missing from `PATH` | Install FFmpeg and confirm `ffmpeg -version` works from the terminal. |
-| `ImportError: sentencepiece` or `soundfile` | Dependencies missing | Re-run `python -m pip install -r requirements.txt`. |
+| `ImportError: sentencepiece` or `soundfile` | Dependencies missing | Re-run `python -m pip install "numpy<2"` followed by `python -m pip install -r requirements.txt`. |
 | PyTorch install fails on Windows | Default wheels conflict with CPU-only setups | Install the CPU build: `python -m pip install torch --index-url https://download.pytorch.org/whl/cpu`. |
 | Generated audio sounds different between runs | Speaker embedding recreated randomly | Import and reuse `create_default_speaker_embedding()` or persist the tensor with `numpy.save`. |
 

@@ -81,11 +81,38 @@ def test_diagnose_whisper_unavailable() -> None:
     assert self_debug.transcribe.MISSING_WHISPER_MESSAGE == result.recommendation
 
 
+def test_diagnose_numpy_version_available() -> None:
+    class _Module:
+        __version__ = "1.26.4"
+
+    result = self_debug.diagnose_numpy_version(importer=lambda _: _Module)
+
+    assert result.status == "available"
+    assert "satisfies" in result.details
+
+
+def test_diagnose_numpy_version_conflict() -> None:
+    class _Module:
+        __version__ = "2.0.0"
+
+    result = self_debug.diagnose_numpy_version(importer=lambda _: _Module)
+
+    assert result.status == "unavailable"
+    assert "incompatible" in result.details
+    assert "numpy<2" in (result.recommendation or "")
+
+
 def test_main_respects_json_flag(monkeypatch, capsys) -> None:
     markitdown_result = self_debug.DiagnosticResult(
         name="markitdown",
         status="available",
         details="uvx markitdown",
+        recommendation=None,
+    )
+    numpy_result = self_debug.DiagnosticResult(
+        name="numpy",
+        status="available",
+        details="NumPy ok",
         recommendation=None,
     )
     whisper_result = self_debug.DiagnosticResult(
@@ -95,6 +122,7 @@ def test_main_respects_json_flag(monkeypatch, capsys) -> None:
         recommendation=None,
     )
     monkeypatch.setattr(self_debug, "diagnose_markitdown", lambda: markitdown_result)
+    monkeypatch.setattr(self_debug, "diagnose_numpy_version", lambda: numpy_result)
     monkeypatch.setattr(self_debug, "diagnose_whisper", lambda: whisper_result)
 
     exit_code = self_debug.main(["--json"])
@@ -113,6 +141,12 @@ def test_main_handles_error_status(monkeypatch, capsys) -> None:
         details="missing command",
         recommendation="install uv",
     )
+    numpy_result = self_debug.DiagnosticResult(
+        name="numpy",
+        status="available",
+        details="NumPy ok",
+        recommendation=None,
+    )
     whisper_result = self_debug.DiagnosticResult(
         name="whisper",
         status="available",
@@ -120,6 +154,7 @@ def test_main_handles_error_status(monkeypatch, capsys) -> None:
         recommendation=None,
     )
     monkeypatch.setattr(self_debug, "diagnose_markitdown", lambda: markitdown_result)
+    monkeypatch.setattr(self_debug, "diagnose_numpy_version", lambda: numpy_result)
     monkeypatch.setattr(self_debug, "diagnose_whisper", lambda: whisper_result)
 
     exit_code = self_debug.main([])

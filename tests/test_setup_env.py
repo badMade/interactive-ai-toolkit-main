@@ -73,7 +73,7 @@ class FakeRunner:
 def _requirements_file(tmp_path: Path) -> Path:
     """Create a temporary requirements.txt file for testing."""
     path = tmp_path / "requirements.txt"
-    path.write_text("numpy\n")
+    path.write_text(f"{setup_env.NUMPY_REQUIREMENT}\n")
     return path
 
 
@@ -170,15 +170,26 @@ def test_install_requirements_runs_expected_commands(
     setup_env.install_requirements(
         Path("/tmp/python"), requirements_file, runner=runner
     )
-    assert runner.calls[0][0][:4] == ["/tmp/python",
-                                      "-m",
-                                      "pip",
-                                      "install"]
-    assert runner.calls[1][0][:5] == ["/tmp/python",
-                                      "-m",
-                                      "pip",
-                                      "install",
-                                      "-r"]
+    upgrade_command = runner.calls[0][0]
+    numpy_command = runner.calls[1][0]
+    requirements_command = runner.calls[2][0]
+
+    assert upgrade_command[:4] == ["/tmp/python", "-m", "pip", "install"]
+    assert "--upgrade" in upgrade_command and upgrade_command[-1] == "pip"
+    assert numpy_command == [
+        "/tmp/python",
+        "-m",
+        "pip",
+        "install",
+        setup_env.NUMPY_REQUIREMENT,
+    ]
+    assert requirements_command[:5] == [
+        "/tmp/python",
+        "-m",
+        "pip",
+        "install",
+        "-r",
+    ]
 
 
 def test_ensure_ffmpeg_available_success() -> None:
@@ -260,7 +271,7 @@ def test_ensure_ffmpeg_available_script_failure(monkeypatch) -> None:
 def test_verify_installation_success(tmp_path: Path) -> None:
     """Test that verify_installation succeeds with all packages installed."""
     packages = setup_env.DEFAULT_VALIDATION_PACKAGES
-    package_responses = [(f"{name} 1.0.0", "") for name in packages]
+    package_responses = [("1.0.0", "") for _ in packages]
     runner = FakeRunner(
         responses=[
             ("Python 3.11.0", ""),
@@ -274,6 +285,30 @@ def test_verify_installation_success(tmp_path: Path) -> None:
         runner=runner,
     )
     assert len(runner.calls) == 2 + len(packages)
+
+
+def test_verify_installation_enforces_numpy_constraint(tmp_path: Path) -> None:
+    """Ensure verify_installation fails when NumPy violates the pin."""
+
+    packages = {"numpy": setup_env.NUMPY_REQUIREMENT}
+    runner = FakeRunner(
+        responses=[
+            ("Python 3.11.0", ""),
+            ("pip 23.0", ""),
+            ("2.0.0", ""),
+        ]
+    )
+
+    with pytest.raises(setup_env.SetupError) as error:
+        setup_env.verify_installation(
+            tmp_path / ".venv/bin/python",
+            packages=packages,
+            runner=runner,
+        )
+
+    message = str(error.value)
+    assert "numpy" in message.lower()
+    assert "numpy<2" in message
 
 
 def test_verify_installation_failure(tmp_path: Path) -> None:
@@ -329,7 +364,10 @@ def test_main_writes_rotating_log_with_packages(monkeypatch, tmp_path: Path) -> 
         [
             "Python 3.11.0",
             "pip 23.0",
-            *(f"{name}-version" for name in setup_env.DEFAULT_VALIDATION_PACKAGES),
+            *(
+                "1.26.0" if name == "numpy" else f"{name}-version"
+                for name in setup_env.DEFAULT_VALIDATION_PACKAGES
+            ),
         ]
     )
 

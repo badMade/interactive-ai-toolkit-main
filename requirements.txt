@@ -4,5 +4,5 @@ transformers
 torch
 soundfile
 sentencepiece
-numpy
+numpy<2
 pytest

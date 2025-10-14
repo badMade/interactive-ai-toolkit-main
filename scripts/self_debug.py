@@ -42,6 +42,30 @@ class DiagnosticResult:
         return payload
 
 
+NUMPY_REQUIREMENT = "numpy<2"
+NUMPY_REINSTALL_COMMAND = "python -m pip install \"numpy<2\""
+
+
+def _parse_version_tuple(value: str) -> tuple[int, ...] | None:
+    """Return parsed version components or ``None`` when parsing fails."""
+
+    tokens = value.replace("-", ".").split(".")
+    parts: list[int] = []
+    for token in tokens:
+        if not token:
+            continue
+        digits = []
+        for char in token:
+            if char.isdigit():
+                digits.append(char)
+            else:
+                break
+        if not digits:
+            break
+        parts.append(int("".join(digits)))
+    return tuple(parts) if parts else None
+
+
 def locate_executable(
     candidates: Iterable[str],
     *,
@@ -87,6 +111,69 @@ def diagnose_python_version(
             f"{version_text} detected; Python {expected_major}.{expected_minor} is required for the toolkit."
         ),
         recommendation=recommendation,
+    )
+
+
+def diagnose_numpy_version(
+    *, importer: Callable[[str], object] | None = None
+) -> DiagnosticResult:
+    """Describe whether NumPy satisfies the required compatibility pin."""
+
+    load_module = importer or import_module
+    try:
+        module = load_module("numpy")
+    except ModuleNotFoundError as exc:
+        return DiagnosticResult(
+            name="numpy",
+            status="unavailable",
+            details=f"Import failed: {exc}",
+            recommendation=(
+                f"Install a compatible build with '{NUMPY_REINSTALL_COMMAND}'."
+            ),
+        )
+
+    version_text = str(getattr(module, "__version__", "")).strip()
+    if not version_text:
+        return DiagnosticResult(
+            name="numpy",
+            status="unavailable",
+            details="Unable to determine the installed NumPy version.",
+            recommendation=(
+                f"Reinstall the package with '{NUMPY_REINSTALL_COMMAND}'."
+            ),
+        )
+
+    parsed_version = _parse_version_tuple(version_text)
+    if parsed_version is None:
+        return DiagnosticResult(
+            name="numpy",
+            status="unavailable",
+            details=f"Unable to parse NumPy version '{version_text}'.",
+            recommendation=(
+                f"Reinstall the package with '{NUMPY_REINSTALL_COMMAND}'."
+            ),
+        )
+
+    _, _, upper_text = NUMPY_REQUIREMENT.partition("<")
+    requirement_version = _parse_version_tuple(upper_text) or (2,)
+    if parsed_version >= requirement_version:
+        return DiagnosticResult(
+            name="numpy",
+            status="unavailable",
+            details=(
+                f"NumPy {version_text} is incompatible with requirement "
+                f"{NUMPY_REQUIREMENT}."
+            ),
+            recommendation=(
+                f"Run '{NUMPY_REINSTALL_COMMAND}' inside your activated "
+                "virtual environment."
+            ),
+        )
+
+    return DiagnosticResult(
+        name="numpy",
+        status="available",
+        details=f"NumPy {version_text} satisfies {NUMPY_REQUIREMENT}.",
     )
 
 
@@ -195,7 +282,10 @@ def render_results(results: Sequence[DiagnosticResult]) -> str:
 def main(argv: Sequence[str] | None = None) -> int:
     """Entry point that prints JSON or text diagnostics based on *argv*."""
 
-    args = list(argv or sys.argv[1:])
+    if argv is None:
+        args = list(sys.argv[1:])
+    else:
+        args = list(argv)
     as_json = "--json" in args
     if as_json:
         args.remove("--json")
@@ -209,6 +299,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     results = [
         diagnose_python_version(),
+        diagnose_numpy_version(),
         diagnose_markitdown(),
         diagnose_whisper(),
     ]

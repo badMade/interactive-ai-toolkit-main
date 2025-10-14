@@ -16,7 +16,7 @@ REQUIREMENTS = (
     "torch",
     "soundfile",
     "sentencepiece",
-    "numpy",
+    "numpy<2",
     "pytest",
 )
 
@@ -25,6 +25,14 @@ def _create_requirements(tmp_path: Path) -> Path:
     path = tmp_path / "requirements.txt"
     path.write_text("\n".join(REQUIREMENTS) + "\n")
     return path
+
+
+def test_read_required_packages_retains_numpy_pin(tmp_path: Path) -> None:
+    requirements_path = _create_requirements(tmp_path)
+
+    packages = run.read_required_packages(requirements_path)
+
+    assert packages["numpy"] == "numpy<2"
 
 
 def _write_valid_setup_log(tmp_path: Path, requirements_path: Path) -> Path:

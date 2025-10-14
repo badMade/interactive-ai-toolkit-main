@@ -14,6 +14,7 @@ DEFAULT_VENV_PATH = PROJECT_ROOT / ".venv"
 DEFAULT_REQUIREMENTS_FILE = PROJECT_ROOT / "requirements.txt"
 
 REQUIRED_PYTHON_VERSION = (3, 12)
+NUMPY_REQUIREMENT = "numpy<2"
 
 
 class EnvironmentProvisioningError(RuntimeError):
@@ -366,6 +367,11 @@ def install_requirements(
     """Install requirements into the virtual environment."""
 
     env = build_venv_environment(venv_path)
+    run_command(
+        [str(venv_python), "-m", "pip", "install", NUMPY_REQUIREMENT],
+        runner=runner,
+        env=env,
+    )
     run_command(
         [str(venv_python), "-m", "pip", "install", "-r", str(requirements_path)],
         runner=runner,
