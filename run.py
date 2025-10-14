@@ -119,7 +119,8 @@ def read_required_packages(requirements_path: Path) -> dict[str, str]:
             canonical = _canonical_package_name(base)
             cleaned[canonical] = base
             for extra in extras:
-                for module in EXTRA_VALIDATION_MODULES.get((canonical, extra), ()):
+                for module in EXTRA_VALIDATION_MODULES.get((canonical, extra),
+                                                           ()):
                     cleaned[module] = module
     return cleaned
 
