@@ -9,9 +9,8 @@ from __future__ import annotations
 import logging
 import subprocess
 import sys
-from collections import deque
+from collections import deque, namedtuple
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 
@@ -92,28 +91,31 @@ def test_ensure_requirements_file_success(requirements_file: Path) -> None:
     assert resolved == requirements_file
 
 
+VersionInfo = namedtuple("VersionInfo", ["major", "minor", "micro"])
+
+
 def test_ensure_supported_python_raises_for_older_runtime(monkeypatch) -> None:
     """Test that ensure_supported_python raises
-    SetupError for Python < 3.10."""
+    SetupError for Python < 3.12."""
     monkeypatch.setattr(
         setup_env.sys,
         "version_info",
-        SimpleNamespace(major=3, minor=9, micro=18),
+        VersionInfo(3, 9, 18),
         raising=False,
     )
     with pytest.raises(setup_env.SetupError) as error:
         setup_env.ensure_supported_python()
-    assert "Python 3.10 or newer is required" in str(error.value)
+    assert "Python 3.12 or newer is required" in str(error.value)
 
 
 def test_ensure_supported_python_accepts_supported_runtime(
     monkeypatch,
 ) -> None:
-    """Test that ensure_supported_python accepts Python >= 3.10."""
+    """Test that ensure_supported_python accepts Python >= 3.12."""
     monkeypatch.setattr(
         setup_env.sys,
         "version_info",
-        SimpleNamespace(major=3, minor=11, micro=2),
+        VersionInfo(3, 12, 5),
         raising=False,
     )
     setup_env.ensure_supported_python()
@@ -124,7 +126,7 @@ def test_create_virtualenv_skips_when_existing(tmp_path: Path) -> None:
     virtualenv already exists."""
     venv_path = tmp_path / ".venv"
     venv_path.mkdir()
-    (venv_path / "pyvenv.cfg").write_text("")
+    (venv_path / "pyvenv.cfg").write_text("version = 3.12.0\n")
     runner = FakeRunner()
     setup_env.create_virtualenv(venv_path, runner=runner)
     assert not runner.calls, "Runner should not be called when venv exists"

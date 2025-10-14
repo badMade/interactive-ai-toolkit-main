@@ -72,7 +72,9 @@ def test_synchronize_environment_installs_and_verifies(tmp_path: Path) -> None:
     venv_path = project_root / ".venv"
     python_dir = venv_path / "bin"
     python_dir.mkdir(parents=True)
-    (venv_path / "pyvenv.cfg").write_text("home = /usr/bin/python\n")
+    (venv_path / "pyvenv.cfg").write_text(
+        "home = /usr/bin/python\nversion = 3.12.0\n"
+    )
     (python_dir / "python").write_text("#!/usr/bin/env python3\n")
 
     runner = StubRunner(
@@ -120,7 +122,9 @@ def test_synchronize_environment_skips_install_when_satisfied(tmp_path: Path) ->
     venv_path = project_root / ".venv"
     python_dir = venv_path / "bin"
     python_dir.mkdir(parents=True)
-    (venv_path / "pyvenv.cfg").write_text("home = /usr/bin/python\n")
+    (venv_path / "pyvenv.cfg").write_text(
+        "home = /usr/bin/python\nversion = 3.12.0\n"
+    )
     (python_dir / "python").write_text("#!/usr/bin/env python3\n")
 
     runner = StubRunner([(0, "", ""), (0, "", ""), (0, "", "")])
