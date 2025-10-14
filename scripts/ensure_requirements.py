@@ -390,8 +390,18 @@ def install_requirements(
     """Install requirements into the virtual environment."""
 
     env = build_venv_environment(venv_path)
+    env["PIP_REQUIRE_VIRTUALENV"] = "1"
     run_command(
-        [str(venv_python), "-m", "pip", "install", "-r", str(requirements_path)],
+        [
+            str(venv_python),
+            "-m",
+            "pip",
+            "install",
+            "--upgrade",
+            "--force-reinstall",
+            "-r",
+            str(requirements_path),
+        ],
         runner=runner,
         env=env,
     )
@@ -421,8 +431,6 @@ def synchronize_environment(
         requirements,
         runner=runner,
     )
-    if not missing_before:
-        return []
     install_requirements(
         venv_python,
         requirements_path,
