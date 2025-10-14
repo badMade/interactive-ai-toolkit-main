@@ -186,7 +186,7 @@ def diagnose_whisper(
 def diagnose_numpy(
     *, importer: Callable[[str], object] | None = None
 ) -> DiagnosticResult:
-    """Verify that NumPy is installed with a supported major version."""
+    """Verify that NumPy is installed at the exact pinned version."""
 
     load_module = importer or import_module
     try:
@@ -213,26 +213,28 @@ def diagnose_numpy(
             ),
         )
 
-    major_component = version.split(".", 1)[0]
-    try:
-        major = int(major_component)
-    except ValueError:
+    pinned_version = NUMPY_PINNED_SPEC.partition("==")[2]
+    if not pinned_version:
         return DiagnosticResult(
             name="numpy",
             status="unavailable",
-            details=f"Could not parse NumPy version '{version}'.",
+            details=(
+                "Unable to determine the pinned NumPy version from the project specification."
+            ),
             recommendation=(
-                "Reinstall the dependency with `python -m pip install \"numpy==1.26.4\"`."
+                "Verify the project's NumPy requirement and reinstall with the documented pinned version."
             ),
         )
 
-    if major >= 2:
+    if version != pinned_version:
         return DiagnosticResult(
             name="numpy",
             status="unavailable",
-            details=f"Detected NumPy {version}, which is not supported.",
+            details=(
+                f"Detected NumPy {version}, but the project requires {NUMPY_PINNED_SPEC}."
+            ),
             recommendation=(
-                "Downgrade to the pinned build with `python -m pip install \"numpy==1.26.4\"`."
+                "Install the pinned build with `python -m pip install \"numpy==1.26.4\"`."
             ),
         )
 
