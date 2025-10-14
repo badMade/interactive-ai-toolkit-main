@@ -123,3 +123,12 @@ Troubleshooting Tips
   bash ``export OPENAI_API_KEY="sk-..."``).
 - Logs and debug output: inspect terminal logs; Hugging Face downloads are
   cached automatically under the user's home directory.
+
+Recent Maintenance
+------------------
+- 2024-10-21: Hardened ``transcribe.py`` so HTTPS certificate verification
+  stays enabled by default. The CLI now only adjusts TLS settings when a
+  custom ``--ca-bundle`` path is provided, preserving secure defaults for
+  all other runs. Added regression tests ensuring TLS configuration and
+  environment variables remain untouched at import time. Re-run the
+  automated suite with ``pytest`` after pulling the latest changes.

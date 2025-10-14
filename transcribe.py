@@ -6,7 +6,6 @@ file and model are configured for local experimentation but can be overridden
 on the command line.
 """
 import os
-import ssl
 import sys
 from argparse import ArgumentParser, Namespace
 from functools import lru_cache
@@ -17,13 +16,6 @@ from typing import Any, Dict
 
 from compatibility import ensure_numpy_compatible, NumpyCompatibilityError
 from shared_messages import MISSING_WHISPER_MESSAGE
-
-# Disable SSL verification for model downloads
-# (workaround for corporate proxies)
-ssl._create_default_https_context = ssl._create_unverified_context  # pylint: disable=protected-access
-os.environ['PYTHONHTTPSVERIFY'] = '0'
-os.environ['CURL_CA_BUNDLE'] = ''
-os.environ['REQUESTS_CA_BUNDLE'] = ''
 
 
 # Exposed for test instrumentation;
@@ -123,6 +115,7 @@ def configure_certificate_bundle(raw_bundle_path: str | None) -> None:
     """
 
     if raw_bundle_path is None:
+        # Keep the interpreter's default TLS verification settings intact.
         return
 
     bundle_path = Path(raw_bundle_path).expanduser().resolve()
@@ -131,6 +124,8 @@ def configure_certificate_bundle(raw_bundle_path: str | None) -> None:
 
     bundle_str = str(bundle_path)
     for env_var in ("REQUESTS_CA_BUNDLE", "CURL_CA_BUNDLE", "SSL_CERT_FILE"):
+        # Use standard environment hooks so HTTP clients continue verifying
+        # certificates while trusting the additional proxy root.
         os.environ[env_var] = bundle_str
 
 
