@@ -81,8 +81,7 @@ python3.12 --version
 
 ```bash
 python -m pip install --upgrade pip
-python -m pip install "numpy<2"
-python -m pip install -r requirements.txt
+python -m pip install --upgrade --force-reinstall -r requirements.txt
 ```
 
 > **Note:** When the CLI reports `OpenAI Whisper is not installed. Install it with 'pip install openai-whisper' or run setup_env.py to configure the environment.`, run `pip install openai-whisper` in your active environment to install the missing dependency.
@@ -110,6 +109,15 @@ python -m pip install openai
 The optional client is needed only if you plan to call the hosted Whisper API as
 an alternative to local transcription.
 
+### 5. macOS recovery script (optional)
+
+macOS x86_64 developers can run `./fix_env.sh` from the project root to rebuild
+the virtual environment from scratch. The script removes any existing `.venv`
+directory, writes the pinned `requirements.txt`, forces dependency
+reinstallation, and verifies that NumPy, PyTorch, and Whisper import correctly.
+Install Python 3.12 via Homebrew (`brew install python@3.12`) before running the
+script.
+
 ## Usage
 
 ### Hands-on Walkthrough
@@ -119,8 +127,7 @@ an alternative to local transcription.
 
    ```bash
    python -m pip install --upgrade pip
-   python -m pip install "numpy<2"
-   python -m pip install -r requirements.txt
+   python -m pip install --upgrade --force-reinstall -r requirements.txt
    ```
 
 3. Install FFmpeg (download a Windows build from Gyan.dev, run `brew install
@@ -242,9 +249,10 @@ results than local hardware can provide.
 
 - `python3.12 -m venv .venv` and activate it for your platform.
 - `python -m pip install --upgrade pip`
-- `python -m pip install "numpy<2"`
-- `python -m pip install -r requirements.txt`
+- `python -m pip install --upgrade --force-reinstall -r requirements.txt`
 - Confirm `ffmpeg -version` works, then run `python transcribe.py` or `python tts.py`.
+- On macOS x86_64 run `./fix_env.sh` to reset the environment with pinned
+  dependencies when installs drift.
 
 
 ## Development Guidelines
@@ -266,7 +274,7 @@ results than local hardware can provide.
 | CLI exits with `OpenAI Whisper is not installed. Install it with 'pip install openai-whisper' or run setup_env.py to configure the environment.` | Whisper dependency missing from the environment | Install Whisper with `pip install openai-whisper` or run `python setup_env.py` to prepare the virtual environment. |
 | `ffmpeg` errors | FFmpeg missing from `PATH` | Install FFmpeg and confirm `ffmpeg -version` works from the terminal. |
 | `ImportError: sentencepiece` or `soundfile` | Dependencies missing | Re-run `python -m pip install -r requirements.txt`. |
-| Runtime errors mentioning NumPy 2.x wheels | Incompatible NumPy major release | Reinstall the compatible build with `python -m pip install "numpy<2"`. |
+| Runtime errors mentioning NumPy 2.x wheels | Incompatible NumPy major release | Reinstall the pinned build with `python -m pip install numpy==1.26.4`. |
 | PyTorch install fails on Windows | Default wheels conflict with CPU-only setups | Install the CPU build: `python -m pip install torch --index-url https://download.pytorch.org/whl/cpu`. |
 | Generated audio sounds different between runs | Speaker embedding recreated randomly | Import and reuse `create_default_speaker_embedding()` or persist the tensor with `numpy.save`. |
 

@@ -70,11 +70,18 @@ def _read_pyvenv_version(venv_path: Path) -> tuple[int, int] | None:
     return None
 
 
-NUMPY_PINNED_SPEC = "numpy<2"
+NUMPY_PINNED_SPEC = "numpy==1.26.4"
+
+
+FIX_ENV_GUIDANCE = (
+    "On macOS x86_64 hosts you can run './fix_env.sh' to recreate the environment automatically."
+)
 
 
 DEFAULT_VALIDATION_PACKAGES: tuple[str, ...] = (
     "torch",
+    "torchvision",
+    "torchaudio",
     "transformers",
     "soundfile",
     "whisper",
@@ -93,7 +100,8 @@ def ensure_supported_python() -> None:
         raise SetupError(
             "Python 3.12 or newer is required. "
             f"Detected {current.major}.{current.minor}.{current.micro}. "
-            "Please install Python 3.12 and re-run the setup."
+            "Please install Python 3.12 and re-run the setup. "
+            f"{FIX_ENV_GUIDANCE}"
         )
 
 
@@ -312,7 +320,8 @@ def ensure_requirements_file(requirements_path: Path) -> Path:
     if not requirements_path.is_file():
         raise SetupError(
             "Could not find requirements.txt. "
-            "Please add it before running setup."
+            "Please add it before running setup. "
+            f"{FIX_ENV_GUIDANCE}"
         )
     logging.info("Using requirements file at %s", requirements_path)
     return requirements_path
@@ -368,12 +377,16 @@ def install_requirements(
                  "pip"], runner=runner)
     logging.info("Installing dependencies from requirements.txt")
     run_command(
-        [str(venv_python),
-         "-m",
-         "pip",
-         "install",
-         "-r",
-         str(requirements_path)],
+        [
+            str(venv_python),
+            "-m",
+            "pip",
+            "install",
+            "--upgrade",
+            "--force-reinstall",
+            "-r",
+            str(requirements_path),
+        ],
         runner=runner,
     )
 
@@ -448,20 +461,20 @@ def _ensure_supported_numpy(version: str) -> None:
     if not normalized:
         raise SetupError(
             "Unable to determine the installed NumPy version. "
-            "Reinstall NumPy with `python -m pip install \"numpy<2\"` and retry."
+            "Reinstall NumPy with `python -m pip install numpy==1.26.4` and retry."
         )
     match = re.match(r"(\d+)\.(\d+)", normalized)
     if not match:
         raise SetupError(
             "Could not parse the NumPy version string "
-            f"'{version}'. Reinstall NumPy with `python -m pip install \"numpy<2\"`."
+            f"'{version}'. Reinstall NumPy with `python -m pip install numpy==1.26.4`."
         )
     major = int(match.group(1))
     if major >= 2:
         raise SetupError(
             "Detected NumPy version "
             f"{normalized}. The toolkit requires {NUMPY_PINNED_SPEC} for compatibility. "
-            "Run `python -m pip install \"numpy<2\"` inside the virtual environment."
+            "Run `python -m pip install numpy==1.26.4` inside the virtual environment."
         )
 
 
@@ -524,6 +537,13 @@ def main() -> int:
         logging.error(colorize(f"Environment setup failed: {error}", "red"))
         print(colorize("Environment setup failed. "
                        "See log output above for details.", "red"))
+        if sys.platform == "darwin":
+            print(
+                colorize(
+                    "Hint: run './fix_env.sh' to recreate the virtual environment on macOS x86_64.",
+                    "yellow",
+                )
+            )
         return 1
 
     print(colorize("Environment setup completed successfully!", "green"))

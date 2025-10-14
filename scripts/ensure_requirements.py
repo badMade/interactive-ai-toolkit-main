@@ -13,7 +13,11 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_VENV_PATH = PROJECT_ROOT / ".venv"
 DEFAULT_REQUIREMENTS_FILE = PROJECT_ROOT / "requirements.txt"
 
-NUMPY_PINNED_SPEC = "numpy<2"
+NUMPY_PINNED_SPEC = "numpy==1.26.4"
+
+FIX_ENV_GUIDANCE = (
+    "On macOS x86_64 hosts you can run './fix_env.sh' to recreate the environment automatically."
+)
 
 REQUIRED_PYTHON_VERSION = (3, 12)
 
@@ -73,7 +77,7 @@ def ensure_requirements_file(path: Path) -> Path:
 
     if not path.is_file():
         raise EnvironmentProvisioningError(
-            f"Could not find a requirements file at {path}."
+            f"Could not find a requirements file at {path}. {FIX_ENV_GUIDANCE}"
         )
     return path
 
@@ -125,7 +129,8 @@ def resolve_python_command(
 
     raise EnvironmentProvisioningError(
         "Python 3.12 is required but was not found on the system PATH. "
-        "Install Python 3.12 and retry."
+        "Install Python 3.12 and retry. "
+        f"{FIX_ENV_GUIDANCE}"
     )
 
 
@@ -234,25 +239,23 @@ def collect_requirements(requirements_path: Path) -> list[str]:
 
 
 def ensure_numpy_requirement(requirements: Sequence[str]) -> None:
-    """Ensure that *requirements* pins NumPy below major version two."""
+    """Ensure that *requirements* pins NumPy to the supported release."""
 
-    normalized_requirements = [
-        requirement.lower().replace(" ", "") for requirement in requirements
-    ]
+    cleaned = [requirement.strip().replace(" ", "") for requirement in requirements]
     numpy_entries = [
-        requirement for requirement in normalized_requirements if requirement.startswith("numpy")
+        requirement for requirement in cleaned if requirement.lower().startswith("numpy")
     ]
     if not numpy_entries:
         raise EnvironmentProvisioningError(
-            "The requirements file must include the dependency "
-            f"'{NUMPY_PINNED_SPEC}' to keep compatibility with PyTorch and Whisper."
+            "The requirements file must include a pinned NumPy dependency. "
+            f"Add '{NUMPY_PINNED_SPEC}' and retry."
         )
-    for requirement in numpy_entries:
-        if "<2" not in requirement:
-            raise EnvironmentProvisioningError(
-                "The NumPy dependency must be pinned below version 2.0. "
-                "Update requirements.txt to include 'numpy<2' and rerun the setup."
-            )
+    expected_normalized = NUMPY_PINNED_SPEC.lower().replace(" ", "")
+    normalized_entries = {entry.lower() for entry in numpy_entries}
+    if expected_normalized not in normalized_entries:
+        raise EnvironmentProvisioningError(
+            f"NumPy must be pinned to {NUMPY_PINNED_SPEC} for compatibility with PyTorch and Whisper."
+        )
 
 
 _CHECK_REQUIREMENT_CODE = """
@@ -391,7 +394,16 @@ def install_requirements(
 
     env = build_venv_environment(venv_path)
     run_command(
-        [str(venv_python), "-m", "pip", "install", "-r", str(requirements_path)],
+        [
+            str(venv_python),
+            "-m",
+            "pip",
+            "install",
+            "--upgrade",
+            "--force-reinstall",
+            "-r",
+            str(requirements_path),
+        ],
         runner=runner,
         env=env,
     )

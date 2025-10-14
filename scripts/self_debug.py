@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
+import platform
 import shutil
 import sys
 from dataclasses import dataclass
@@ -20,7 +22,9 @@ class DiagnosticError(RuntimeError):
 ExecutableLocator = Callable[[str], str | None]
 
 
-NUMPY_PINNED_SPEC = "numpy<2"
+NUMPY_PINNED_SPEC = "numpy==1.26.4"
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
 @dataclass(frozen=True)
@@ -198,7 +202,7 @@ def diagnose_numpy(
             details=f"Import failed: {exc}",
             recommendation=(
                 "Install the compatible build with "
-                "`python -m pip install \"numpy<2\"`."
+                "`python -m pip install numpy==1.26.4`."
             ),
         )
 
@@ -209,7 +213,7 @@ def diagnose_numpy(
             status="unavailable",
             details="Unable to determine the installed NumPy version.",
             recommendation=(
-                "Reinstall NumPy with `python -m pip install \"numpy<2\"` and rerun the diagnostics."
+                "Reinstall NumPy with `python -m pip install numpy==1.26.4` and rerun the diagnostics."
             ),
         )
 
@@ -222,7 +226,7 @@ def diagnose_numpy(
             status="unavailable",
             details=f"Could not parse NumPy version '{version}'.",
             recommendation=(
-                "Reinstall the dependency with `python -m pip install \"numpy<2\"`."
+                "Reinstall the dependency with `python -m pip install numpy==1.26.4`."
             ),
         )
 
@@ -232,7 +236,7 @@ def diagnose_numpy(
             status="unavailable",
             details=f"Detected NumPy {version}, which is not supported.",
             recommendation=(
-                "Downgrade to a compatible build with `python -m pip install \"numpy<2\"`."
+                "Install the pinned build with `python -m pip install numpy==1.26.4`."
             ),
         )
 
@@ -240,6 +244,59 @@ def diagnose_numpy(
         name="numpy",
         status="available",
         details=f"NumPy {version} satisfies the project requirement {NUMPY_PINNED_SPEC}.",
+    )
+
+
+def diagnose_fix_env_script(*, project_root: Path | None = None) -> DiagnosticResult:
+    """Report whether the macOS recovery script is ready for use."""
+
+    root = project_root or PROJECT_ROOT
+    script_path = root / "fix_env.sh"
+    if not script_path.exists():
+        return DiagnosticResult(
+            name="fix_env.sh",
+            status="unavailable",
+            details=f"Script not found at {script_path}.",
+            recommendation=(
+                "Pull the latest repository changes or recreate fix_env.sh from the README instructions."
+            ),
+        )
+
+    if not os.access(script_path, os.X_OK):
+        return DiagnosticResult(
+            name="fix_env.sh",
+            status="unavailable",
+            details=f"Script located at {script_path} is not executable.",
+            recommendation="Run 'chmod +x fix_env.sh' and retry.",
+        )
+
+    if sys.platform != "darwin":
+        return DiagnosticResult(
+            name="fix_env.sh",
+            status="available",
+            details=(
+                f"Script present at {script_path}. Use it on macOS x86_64 hosts when recreating the environment."
+            ),
+        )
+
+    machine = platform.machine()
+    if machine != "x86_64":
+        return DiagnosticResult(
+            name="fix_env.sh",
+            status="available",
+            details=(
+                "Script present but intended for macOS x86_64. "
+                f"Current architecture {machine} should continue using setup_env.py instead."
+            ),
+        )
+
+    return DiagnosticResult(
+        name="fix_env.sh",
+        status="available",
+        details=(
+            f"Script ready at {script_path} to rebuild the environment with pinned dependencies."
+        ),
+        recommendation="Run './fix_env.sh' if pip installations fail on macOS x86_64.",
     )
 
 
@@ -275,6 +332,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         diagnose_numpy(),
         diagnose_markitdown(),
         diagnose_whisper(),
+        diagnose_fix_env_script(),
     ]
     if as_json:
         print(json.dumps([result.to_dict() for result in results], indent=2))
