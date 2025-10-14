@@ -75,6 +75,8 @@ DEFAULT_VALIDATION_PACKAGES: tuple[str, ...] = (
     "torch",
     "transformers",
     "soundfile",
+    "imageio",
+    "imageio_ffmpeg",
     "whisper",
     "sentencepiece",
     "numpy",

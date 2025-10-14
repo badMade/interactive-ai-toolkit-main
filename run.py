@@ -64,6 +64,10 @@ PACKAGE_NAME_ALIASES: Mapping[str, str] = {
     "openai_whisper": "whisper",
 }
 
+EXTRA_VALIDATION_MODULES: Mapping[tuple[str, str], tuple[str, ...]] = {
+    ("imageio", "ffmpeg"): ("imageio_ffmpeg",),
+}
+
 
 def _canonical_package_name(name: str) -> str:
     """Return a normalized representation of *name* for comparisons."""
@@ -89,15 +93,32 @@ def read_required_packages(requirements_path: Path) -> dict[str, str]:
                 continue
             candidate = stripped.split("#", 1)[0].strip()
             candidate = candidate.split(";", 1)[0].strip()
-            for delimiter in ("==", ">=", "<=", "~=", "!=", ">", "<"):
-                if delimiter in candidate:
-                    candidate = candidate.split(delimiter, 1)[0].strip()
-            if "[" in candidate:
-                candidate = candidate.split("[", 1)[0].strip()
             if not candidate:
                 continue
-            canonical = _canonical_package_name(candidate)
-            cleaned[canonical] = candidate
+            extras: tuple[str, ...] = ()
+            base = candidate
+            for delimiter in ("==", ">=", "<=", "~=", "!=", ">", "<"):
+                if delimiter in base:
+                    base = base.split(delimiter, 1)[0].strip()
+                    break
+            if "[" in base and "]" in base:
+                package_name, extra_section = base.split("[", 1)
+                extra_tokens, _, _ = extra_section.partition("]")
+                extras = tuple(
+                    token.strip().lower()
+                    for token in extra_tokens.split(",")
+                    if token.strip()
+                )
+                base = package_name.strip()
+            else:
+                base = base.strip()
+            if not base:
+                continue
+            canonical = _canonical_package_name(base)
+            cleaned[canonical] = base
+            for extra in extras:
+                for module in EXTRA_VALIDATION_MODULES.get((canonical, extra), ()):
+                    cleaned[module] = module
     return cleaned
 
 

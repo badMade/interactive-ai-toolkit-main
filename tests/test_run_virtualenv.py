@@ -15,6 +15,7 @@ REQUIREMENTS = (
     "transformers",
     "torch",
     "soundfile",
+    "imageio[ffmpeg]",
     "sentencepiece",
     "numpy<2",
     "pytest",
