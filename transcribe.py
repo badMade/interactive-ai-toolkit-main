@@ -5,6 +5,7 @@ argument parsing and transcription logic programmatically. The default audio
 file and model are configured for local experimentation but can be overridden
 on the command line.
 """
+import os
 import ssl
 import sys
 from argparse import ArgumentParser, Namespace
@@ -19,6 +20,9 @@ from shared_messages import MISSING_WHISPER_MESSAGE
 
 # Disable SSL verification for model downloads (workaround for corporate proxies)
 ssl._create_default_https_context = ssl._create_unverified_context
+os.environ['PYTHONHTTPSVERIFY'] = '0'
+os.environ['CURL_CA_BUNDLE'] = ''
+os.environ['REQUESTS_CA_BUNDLE'] = ''
 
 
 # Exposed for test instrumentation;
