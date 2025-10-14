@@ -15,6 +15,7 @@ from unittest.mock import MagicMock, patch
 sys.modules.setdefault("whisper", MagicMock())
 
 import transcribe
+from compatibility import NumpyCompatibilityError
 from transcribe import load_audio_path, transcribe_audio
 
 
@@ -56,8 +57,9 @@ class TestTranscribe(unittest.TestCase):
         with self.assertRaises(FileNotFoundError):
             load_audio_path(".")  # Current directory
 
+    @patch("transcribe.ensure_numpy_compatible")
     @patch("transcribe.whisper")
-    def test_transcribe_audio(self, mock_whisper):
+    def test_transcribe_audio(self, mock_whisper, mock_numpy_check):
         """
         Tests that transcribe_audio calls the
         whisper library with the correct arguments.
@@ -77,6 +79,8 @@ class TestTranscribe(unittest.TestCase):
         mock_model.transcribe.assert_called_with(
             str(self.test_file), fp16=False
         )
+
+        mock_numpy_check.assert_called_once_with()
 
         # Assert the result
         self.assertEqual(result["text"], "This is a test transcript.")
@@ -115,6 +119,30 @@ class TestTranscribe(unittest.TestCase):
             stderr.getvalue().strip(),
             transcribe.MISSING_WHISPER_MESSAGE,
         )
+
+    @patch("transcribe.parse_arguments")
+    @patch("transcribe.load_audio_path")
+    def test_main_reports_incompatible_numpy(
+        self,
+        mock_load_audio_path,
+        mock_parse_arguments,
+    ):
+        """The CLI should exit cleanly when NumPy is incompatible."""
+
+        args = Namespace(audio_path="audio.mp3", model="base", fp16=False)
+        mock_parse_arguments.return_value = args
+        mock_load_audio_path.return_value = Path("audio.mp3")
+
+        with patch(
+            "transcribe.transcribe_audio",
+            side_effect=NumpyCompatibilityError("numpy<2 required"),
+        ):
+            with patch("sys.stderr", new_callable=io.StringIO) as stderr:
+                with self.assertRaises(SystemExit) as exit_info:
+                    transcribe.main()
+
+        assert exit_info.exception.code == 1
+        assert "numpy<2" in stderr.getvalue()
 
 
 if __name__ == "__main__":

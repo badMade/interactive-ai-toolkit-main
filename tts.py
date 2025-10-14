@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Tuple
+import sys
 import wave
 
 import numpy as np
@@ -20,10 +21,18 @@ from transformers import (
     SpeechT5Processor
 )
 
+from compatibility import ensure_numpy_compatible, NumpyCompatibilityError
+
 DEFAULT_TEXT = "Welcome to inclusive education with AI."
 DEFAULT_SAMPLE_RATE = 16000
 DEFAULT_MODEL_ID = "microsoft/speecht5_tts"
 DEFAULT_VOCODER_ID = "microsoft/speecht5_hifigan"
+
+
+def _ensure_numpy_ready() -> None:
+    """Verify that the runtime NumPy installation is compatible."""
+
+    ensure_numpy_compatible(np)
 
 
 def load_speecht5_components(
@@ -88,6 +97,7 @@ def synthesize_speech(
         range ``[-1.0, 1.0]``.
     """
 
+    _ensure_numpy_ready()
     inputs = processor(text=text, return_tensors="pt")
     with torch.no_grad():
         waveform = model.generate_speech(
@@ -108,6 +118,7 @@ def save_waveform(waveform: np.ndarray,
     """
 
     # Ensure 1-D mono float array in [-1, 1]
+    _ensure_numpy_ready()
     arr = np.asarray(waveform)
     if arr.ndim > 1:
         arr = np.squeeze(arr)
@@ -134,16 +145,20 @@ def main(
         output_filename: File name or path where the audio will be stored.
     """
 
-    processor, model, vocoder = load_speecht5_components()
-    speaker_embedding = create_default_speaker_embedding()
-    waveform = synthesize_speech(
-        text,
-        processor,
-        model,
-        vocoder,
-        speaker_embedding,
-    )
-    save_waveform(waveform, DEFAULT_SAMPLE_RATE, Path(output_filename))
+    try:
+        processor, model, vocoder = load_speecht5_components()
+        speaker_embedding = create_default_speaker_embedding()
+        waveform = synthesize_speech(
+            text,
+            processor,
+            model,
+            vocoder,
+            speaker_embedding,
+        )
+        save_waveform(waveform, DEFAULT_SAMPLE_RATE, Path(output_filename))
+    except NumpyCompatibilityError as exc:
+        print(exc, file=sys.stderr)
+        raise SystemExit(1) from None
     print(f"✅ Audio saved as {output_filename}")
 
 

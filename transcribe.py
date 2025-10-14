@@ -13,6 +13,7 @@ from pathlib import Path
 from types import ModuleType
 from typing import Any, Dict
 
+from compatibility import ensure_numpy_compatible, NumpyCompatibilityError
 from shared_messages import MISSING_WHISPER_MESSAGE
 
 
@@ -104,6 +105,7 @@ def transcribe_audio(audio_path: Path,
         Dict[str, Any]: Full transcription result emitted by Whisper, including
         ``text`` and segment metadata.
     """
+    ensure_numpy_compatible()
     module = load_whisper_module()
     model = module.load_model(model_name)
     transcription_kwargs: Dict[str, Any] = {}
@@ -144,6 +146,9 @@ def main() -> None:
         if whisper_message is None:
             raise
         print(whisper_message, file=sys.stderr)
+        raise SystemExit(1) from None
+    except NumpyCompatibilityError as exc:
+        print(exc, file=sys.stderr)
         raise SystemExit(1) from None
     print("Transcript:", result["text"])
 
