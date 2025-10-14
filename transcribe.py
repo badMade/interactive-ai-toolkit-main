@@ -31,11 +31,12 @@ def _import_whisper() -> ModuleType:
 
 def load_whisper_module() -> ModuleType:
     """Import the Whisper module with a helpful error if it is unavailable."""
-    global whisper
-    if whisper is not None:
-        return whisper
-    whisper = _import_whisper()
-    return whisper
+    cached = whisper
+    if cached is not None:
+        return cached
+    module = _import_whisper()
+    globals()["whisper"] = module
+    return module
 
 
 DEFAULT_AUDIO = "lesson_recording.mp3"
