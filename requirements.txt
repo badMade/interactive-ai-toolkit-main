@@ -4,5 +4,6 @@ transformers
 torch
 soundfile
 sentencepiece
-numpy
+# NumPy 2.x currently breaks binary wheels used by PyTorch and Whisper.
+numpy<2.0
 pytest

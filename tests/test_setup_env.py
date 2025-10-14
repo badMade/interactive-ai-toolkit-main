@@ -73,7 +73,7 @@ class FakeRunner:
 def _requirements_file(tmp_path: Path) -> Path:
     """Create a temporary requirements.txt file for testing."""
     path = tmp_path / "requirements.txt"
-    path.write_text("numpy\n")
+    path.write_text("numpy<2.0\n")
     return path
 
 
