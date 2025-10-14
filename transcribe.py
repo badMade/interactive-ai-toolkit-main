@@ -6,6 +6,7 @@ file and model are configured for local experimentation but can be overridden
 on the command line.
 """
 import os
+import ssl
 import sys
 from argparse import ArgumentParser, Namespace
 from functools import lru_cache
@@ -19,7 +20,7 @@ from shared_messages import MISSING_WHISPER_MESSAGE
 
 # Disable SSL verification for model downloads
 # (workaround for corporate proxies)
-ssl._create_default_https_context = ssl._create_unverified_context
+ssl._create_default_https_context = ssl._create_unverified_context  # pylint: disable=protected-access
 os.environ['PYTHONHTTPSVERIFY'] = '0'
 os.environ['CURL_CA_BUNDLE'] = ''
 os.environ['REQUESTS_CA_BUNDLE'] = ''
@@ -82,10 +83,10 @@ def parse_arguments() -> Namespace:
         "--ca-bundle",
         default=None,
         help=(
-            "Path to a PEM file containing additional certificate authorities. "
-            "The bundle is added to REQUESTS_CA_BUNDLE, CURL_CA_BUNDLE, and "
-            "SSL_CERT_FILE to support TLS inspection proxies without "
-            "disabling verification."
+            "Path to a PEM file containing additional certificate "
+            "authorities. The bundle is added to REQUESTS_CA_BUNDLE, "
+            "CURL_CA_BUNDLE, and SSL_CERT_FILE to support TLS inspection "
+            "proxies without disabling verification."
         ),
     )
     return parser.parse_args()
