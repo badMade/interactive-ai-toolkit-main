@@ -53,6 +53,11 @@ ensure the scripts work consistently across machines.
 
 ## Environment Setup
 
+> **macOS fast recovery:** On macOS x86_64 you can run `./fix_env.sh` from the
+> project root to recreate a fresh Python 3.12 virtual environment with the
+> pinned dependencies listed in `requirements.txt`. The script is optional but
+> provides a reliable baseline if manual setup falls out of sync.
+
 ### 1. Create and activate a virtual environment
 
 <details>
@@ -81,9 +86,12 @@ python3.12 --version
 
 ```bash
 python -m pip install --upgrade pip
-python -m pip install "numpy<2"
 python -m pip install -r requirements.txt
 ```
+
+The requirements file pins the compatible toolchain (NumPy 1.26.4, PyTorch
+2.2.2, Whisper 20250625, and related libraries) so you do not need to manage
+individual package constraints manually.
 
 > **Note:** When the CLI reports `OpenAI Whisper is not installed. Install it with 'pip install openai-whisper' or run setup_env.py to configure the environment.`, run `pip install openai-whisper` in your active environment to install the missing dependency.
 
@@ -115,11 +123,10 @@ an alternative to local transcription.
 ### Hands-on Walkthrough
 
 1. Create and activate a virtual environment using the commands above.
-2. Upgrade packaging tooling and install dependencies:
+2. Upgrade packaging tooling and install the pinned dependencies:
 
    ```bash
    python -m pip install --upgrade pip
-   python -m pip install "numpy<2"
    python -m pip install -r requirements.txt
    ```
 
