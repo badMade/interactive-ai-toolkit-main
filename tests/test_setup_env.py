@@ -16,6 +16,7 @@ from types import SimpleNamespace
 import pytest
 
 import setup_env
+from shared_messages import MISSING_WHISPER_MESSAGE
 
 
 class FakeRunner:
@@ -291,6 +292,29 @@ def test_verify_installation_failure(tmp_path: Path) -> None:
             packages=packages,
             runner=runner,
         )
+
+
+def test_verify_installation_missing_whisper(tmp_path: Path) -> None:
+    """Verify that missing Whisper yields user-friendly setup guidance."""
+
+    packages = ("torch", "whisper")
+    runner = FakeRunner(
+        responses=[
+            ("Python 3.11.0", ""),
+            ("pip 23.0", ""),
+            ("torch 1.0.0", ""),
+        ],
+        fail_on=3,
+    )
+
+    with pytest.raises(setup_env.SetupError) as error:
+        setup_env.verify_installation(
+            tmp_path / ".venv/bin/python",
+            packages=packages,
+            runner=runner,
+        )
+
+    assert MISSING_WHISPER_MESSAGE in str(error.value)
 
 
 def test_main_writes_rotating_log_with_packages(monkeypatch, tmp_path: Path) -> None:

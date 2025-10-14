@@ -13,12 +13,7 @@ from pathlib import Path
 from types import ModuleType
 from typing import Any, Dict
 
-
-MISSING_WHISPER_MESSAGE = (
-    "OpenAI Whisper is not installed. "
-    "Install it with 'pip install openai-whisper' "
-    "or run setup_env.py to configure the environment."
-)
+from shared_messages import MISSING_WHISPER_MESSAGE
 
 
 # Exposed for test instrumentation; patched in unit tests without requiring Whisper.

@@ -15,6 +15,7 @@ from typing import Iterable, Protocol
 from logging.handlers import RotatingFileHandler
 
 from run import SETUP_LOG_RELATIVE_PATH, read_required_packages
+from shared_messages import MISSING_WHISPER_MESSAGE
 
 
 class CommandRunner(Protocol):
@@ -302,11 +303,20 @@ def verify_installation(
             "version = getattr(module, '__version__', 'installed'); "
             "print(version)"
         )
-        version = run_command(
-            [str(venv_python), "-c", code],
-            capture_output=True,
-            runner=runner,
-        )
+        try:
+            version = run_command(
+                [str(venv_python), "-c", code],
+                capture_output=True,
+                runner=runner,
+            )
+        except (SetupError, ModuleNotFoundError) as exc:
+            if package.lower() == "whisper":
+                guidance = MISSING_WHISPER_MESSAGE
+                details = str(exc)
+                if details and guidance not in details:
+                    guidance = f"{guidance}\nOriginal error: {details}"
+                raise SetupError(guidance) from exc
+            raise
         logging.info("Verified %s %s", package, version or "installed")
         installed_packages[package] = version or "installed"
 
