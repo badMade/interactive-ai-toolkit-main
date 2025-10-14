@@ -3,6 +3,8 @@
 This module contains test cases for text-to-speech functionality,
 including SpeechT5 model loading, speaker embeddings, and audio synthesis.
 """
+import io
+import sys
 import unittest
 from unittest.mock import MagicMock, patch
 from pathlib import Path
@@ -13,12 +15,14 @@ import pytest
 torch = pytest.importorskip("torch")
 np = pytest.importorskip("numpy")
 
+import tts
 from tts import (
     create_default_speaker_embedding,
     save_waveform,
     load_speecht5_components,
     synthesize_speech,
 )
+from compatibility import NumpyCompatibilityError
 
 
 class TestTTS(unittest.TestCase):
@@ -41,7 +45,8 @@ class TestTTS(unittest.TestCase):
         self.assertTrue(torch.equal(embedding1, embedding2))
         self.assertEqual(embedding1.shape, (1, 512))
 
-    def test_save_waveform(self):
+    @patch("tts.ensure_numpy_compatible")
+    def test_save_waveform(self, mock_numpy_check):
         """
         Tests that the waveform is saved correctly as a WAV file.
         """
@@ -56,6 +61,7 @@ class TestTTS(unittest.TestCase):
             self.assertEqual(wf.getnchannels(), 1)
             self.assertEqual(wf.getsampwidth(), 2)
             self.assertEqual(wf.getframerate(), sample_rate)
+        mock_numpy_check.assert_called_once_with(np)
 
     @patch("tts.SpeechT5Processor")
     @patch("tts.SpeechT5ForTextToSpeech")
@@ -76,7 +82,8 @@ class TestTTS(unittest.TestCase):
             "test_vocoder_id"
         )
 
-    def test_synthesize_speech(self):
+    @patch("tts.ensure_numpy_compatible")
+    def test_synthesize_speech(self, mock_numpy_check):
         """
         Tests that the speech synthesis function calls
         the model correctly.
@@ -102,6 +109,32 @@ class TestTTS(unittest.TestCase):
         )
         mock_model.generate_speech.assert_called_once()
         self.assertIsInstance(waveform, np.ndarray)
+        mock_numpy_check.assert_called_once_with(np)
+
+    @patch("tts.synthesize_speech", side_effect=NumpyCompatibilityError("numpy<2"))
+    @patch("tts.create_default_speaker_embedding")
+    @patch("tts.load_speecht5_components")
+    def test_main_reports_incompatible_numpy(
+        self,
+        mock_load_components,
+        mock_create_embedding,
+        mock_synthesize,
+    ):
+        """The CLI should surface NumPy compatibility issues."""
+
+        mock_load_components.return_value = (
+            MagicMock(),
+            MagicMock(),
+            MagicMock(),
+        )
+        mock_create_embedding.return_value = MagicMock()
+
+        with patch("sys.stderr", new_callable=io.StringIO) as stderr:
+            with self.assertRaises(SystemExit) as exit_info:
+                tts.main()
+
+        assert exit_info.exception.code == 1
+        assert "numpy<2" in stderr.getvalue()
 
 
 if __name__ == "__main__":

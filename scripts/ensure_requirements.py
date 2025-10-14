@@ -9,11 +9,11 @@ import sys
 from pathlib import Path
 from typing import Iterable, Protocol, Sequence
 
+from compatibility import NUMPY_PINNED_SPEC
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_VENV_PATH = PROJECT_ROOT / ".venv"
 DEFAULT_REQUIREMENTS_FILE = PROJECT_ROOT / "requirements.txt"
-
-NUMPY_PINNED_SPEC = "numpy<2"
 
 REQUIRED_PYTHON_VERSION = (3, 12)
 

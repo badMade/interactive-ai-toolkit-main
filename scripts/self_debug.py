@@ -10,6 +10,8 @@ from importlib import import_module
 from pathlib import Path
 from typing import Callable, Iterable, Sequence
 
+from compatibility import NUMPY_PINNED_SPEC, NUMPY_REINSTALL_COMMAND
+
 import transcribe
 
 
@@ -18,9 +20,6 @@ class DiagnosticError(RuntimeError):
 
 
 ExecutableLocator = Callable[[str], str | None]
-
-
-NUMPY_PINNED_SPEC = "numpy<2"
 
 
 @dataclass(frozen=True)
@@ -197,8 +196,7 @@ def diagnose_numpy(
             status="unavailable",
             details=f"Import failed: {exc}",
             recommendation=(
-                "Install the compatible build with "
-                "`python -m pip install \"numpy<2\"`."
+                f"Install the compatible build with `{NUMPY_REINSTALL_COMMAND}`."
             ),
         )
 
@@ -209,7 +207,7 @@ def diagnose_numpy(
             status="unavailable",
             details="Unable to determine the installed NumPy version.",
             recommendation=(
-                "Reinstall NumPy with `python -m pip install \"numpy<2\"` and rerun the diagnostics."
+                f"Reinstall NumPy with `{NUMPY_REINSTALL_COMMAND}` and rerun the diagnostics."
             ),
         )
 
@@ -222,7 +220,7 @@ def diagnose_numpy(
             status="unavailable",
             details=f"Could not parse NumPy version '{version}'.",
             recommendation=(
-                "Reinstall the dependency with `python -m pip install \"numpy<2\"`."
+                f"Reinstall the dependency with `{NUMPY_REINSTALL_COMMAND}`."
             ),
         )
 
@@ -232,7 +230,7 @@ def diagnose_numpy(
             status="unavailable",
             details=f"Detected NumPy {version}, which is not supported.",
             recommendation=(
-                "Downgrade to a compatible build with `python -m pip install \"numpy<2\"`."
+                f"Downgrade to a compatible build with `{NUMPY_REINSTALL_COMMAND}`."
             ),
         )
 
