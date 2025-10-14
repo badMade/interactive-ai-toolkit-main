@@ -242,6 +242,7 @@ def validate_setup_log(
         )
 
     incompatible_requirements: list[str] = []
+    specifier_checks_supported = SpecifierSet is not None and Version is not None
     for canonical, package in required_packages.items():
         if not package.specifier:
             continue
@@ -251,8 +252,7 @@ def validate_setup_log(
         version_text = installed_version.strip()
         if not version_text or version_text.lower() == "installed":
             continue
-        if SpecifierSet is None or Version is None:  # pragma: no cover - fallback
-            incompatible_requirements.append(package.display)
+        if not specifier_checks_supported:  # pragma: no cover - fallback
             continue
         try:
             specifier_set = SpecifierSet(package.specifier)
