@@ -12,6 +12,14 @@ from pathlib import Path
 from types import ModuleType
 from typing import Mapping, Sequence
 
+try:
+    from packaging.specifiers import SpecifierSet
+    from packaging.version import InvalidVersion, Version
+except ImportError:  # pragma: no cover - optional runtime dependency
+    SpecifierSet = None  # type: ignore[assignment]
+    InvalidVersion = Exception  # type: ignore[assignment]
+    Version = None  # type: ignore[assignment]
+
 PROJECT_ROOT = Path(__file__).resolve().parent
 SETUP_LOG_RELATIVE_PATH = Path("logs") / "setup_state.json"
 
@@ -72,8 +80,22 @@ def _canonical_package_name(name: str) -> str:
     return PACKAGE_NAME_ALIASES.get(normalized, normalized)
 
 
-def read_required_packages(requirements_path: Path) -> dict[str, str]:
-    """Parse *requirements_path* and return canonical requirement names."""
+@dataclass(frozen=True)
+class RequiredPackage:
+    """Represent metadata extracted from a requirement specification."""
+
+    requirement: str
+    specifier: str | None
+
+    @property
+    def display(self) -> str:
+        """Return the human-readable representation for status messages."""
+
+        return self.requirement
+
+
+def read_required_packages(requirements_path: Path) -> dict[str, RequiredPackage]:
+    """Parse *requirements_path* and return canonical requirement metadata."""
 
     if not requirements_path.is_file():
         raise RuntimeError(
@@ -81,7 +103,7 @@ def read_required_packages(requirements_path: Path) -> dict[str, str]:
             "Please add it before running the CLI."
         )
 
-    cleaned: dict[str, str] = {}
+    cleaned: dict[str, RequiredPackage] = {}
     with open(requirements_path, "r", encoding="utf-8") as handle:
         for raw_line in handle:
             stripped = raw_line.strip()
@@ -89,15 +111,25 @@ def read_required_packages(requirements_path: Path) -> dict[str, str]:
                 continue
             candidate = stripped.split("#", 1)[0].strip()
             candidate = candidate.split(";", 1)[0].strip()
+            if not candidate:
+                continue
+            normalized_requirement = candidate
+            specifier: str | None = None
             for delimiter in ("==", ">=", "<=", "~=", "!=", ">", "<"):
                 if delimiter in candidate:
-                    candidate = candidate.split(delimiter, 1)[0].strip()
+                    name_part, spec_part = candidate.split(delimiter, 1)
+                    candidate = name_part.strip()
+                    specifier = f"{delimiter}{spec_part.strip()}" or None
+                    break
             if "[" in candidate:
                 candidate = candidate.split("[", 1)[0].strip()
             if not candidate:
                 continue
             canonical = _canonical_package_name(candidate)
-            cleaned[canonical] = candidate
+            cleaned[canonical] = RequiredPackage(
+                requirement=normalized_requirement,
+                specifier=specifier,
+            )
     return cleaned
 
 
@@ -199,11 +231,47 @@ def validate_setup_log(
     ]
 
     if missing_keys:
-        missing_display = tuple(required_packages[key] for key in missing_keys)
+        missing_display = tuple(
+            required_packages[key].display for key in missing_keys
+        )
         return SetupLogStatus(
             is_valid=False,
             reason="setup log is missing required packages",
             missing_requirements=missing_display,
+            data=log_data,
+        )
+
+    incompatible_requirements: list[str] = []
+    for canonical, package in required_packages.items():
+        if not package.specifier:
+            continue
+        installed_version = installed_packages.get(canonical)
+        if not isinstance(installed_version, str):
+            continue
+        version_text = installed_version.strip()
+        if not version_text or version_text.lower() == "installed":
+            continue
+        if SpecifierSet is None or Version is None:  # pragma: no cover - fallback
+            incompatible_requirements.append(package.display)
+            continue
+        try:
+            specifier_set = SpecifierSet(package.specifier)
+        except Exception:  # pragma: no cover - defensive
+            incompatible_requirements.append(package.display)
+            continue
+        try:
+            parsed_version = Version(version_text)
+        except InvalidVersion:
+            incompatible_requirements.append(package.display)
+            continue
+        if parsed_version not in specifier_set:
+            incompatible_requirements.append(package.display)
+
+    if incompatible_requirements:
+        return SetupLogStatus(
+            is_valid=False,
+            reason="setup log has incompatible package versions",
+            missing_requirements=tuple(sorted(set(incompatible_requirements))),
             data=log_data,
         )
 
