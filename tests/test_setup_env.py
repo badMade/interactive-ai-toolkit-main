@@ -164,43 +164,66 @@ def test_ensure_ffmpeg_available_success() -> None:
     assert runner.calls == [(["ffmpeg", "-version"], True)]
 
 
-@pytest.mark.parametrize(
-    "os_name, sys_platform, expected",
-    [
-        ("nt", "win32", "winget install"),
-        ("posix", "darwin", "brew install ffmpeg"),
-        ("posix", "linux", "apt install ffmpeg"),
-    ],
-)
-def test_ensure_ffmpeg_available_failure(monkeypatch,
-                                         os_name,
-                                         sys_platform,
-                                         expected) -> None:
-    """Test that ensure_ffmpeg_available provides
-    platform-specific install guidance."""
-    runner = FakeRunner(fail_on=0)
-    monkeypatch.setattr(setup_env.os, "name", os_name, raising=False)
-    monkeypatch.setattr(setup_env.sys, "platform", sys_platform, raising=False)
+def test_ensure_ffmpeg_available_installs_when_missing() -> None:
+    """Ensure the installer script is invoked when FFmpeg is missing."""
+
+    calls: list[tuple[list[str], bool]] = []
+    ffmpeg_attempts = {"count": 0}
+
+    def runner(command, *, check, text, capture_output):
+        calls.append((command, capture_output))
+        if command[0] == "ffmpeg":
+            ffmpeg_attempts["count"] += 1
+            if ffmpeg_attempts["count"] == 1:
+                raise subprocess.CalledProcessError(
+                    returncode=1,
+                    cmd=command,
+                    stderr="ffmpeg missing",
+                )
+            return subprocess.CompletedProcess(
+                args=command,
+                returncode=0,
+                stdout="ffmpeg version 6.1",
+                stderr="",
+            )
+        if command[0].endswith("install_ffmpeg.sh"):
+            return subprocess.CompletedProcess(
+                args=command,
+                returncode=0,
+                stdout="Installer ran successfully",
+                stderr="",
+            )
+        raise AssertionError(f"Unexpected command: {command}")
+
+    setup_env.ensure_ffmpeg_available(runner=runner)
+
+    script_calls = [call for call in calls if call[0][0].endswith("install_ffmpeg.sh")]
+    assert script_calls, "Expected installer script to be executed"
+    assert calls[-1][0] == ["ffmpeg", "-version"], "Final probe should rerun ffmpeg version"
+
+
+def test_ensure_ffmpeg_available_propagates_install_failure() -> None:
+    """Ensure script errors bubble up as SetupError with stderr content."""
+
+    def runner(command, *, check, text, capture_output):
+        if command[0] == "ffmpeg":
+            raise subprocess.CalledProcessError(
+                returncode=1,
+                cmd=command,
+                stderr="ffmpeg missing",
+            )
+        if command[0].endswith("install_ffmpeg.sh"):
+            raise subprocess.CalledProcessError(
+                returncode=2,
+                cmd=command,
+                stderr="Unsupported platform",
+            )
+        raise AssertionError(f"Unexpected command: {command}")
+
     with pytest.raises(setup_env.SetupError) as error:
         setup_env.ensure_ffmpeg_available(runner=runner)
-    assert expected in str(error.value)
 
-
-def test_ensure_ffmpeg_available_missing_binary(monkeypatch) -> None:
-    """Test that ensure_ffmpeg_available handles
-    FileNotFoundError appropriately."""
-    def missing_runner(command, *, check, text, capture_output):
-        raise FileNotFoundError("ffmpeg not found")
-
-    monkeypatch.setattr(setup_env.os, "name", "posix", raising=False)
-    monkeypatch.setattr(setup_env.sys, "platform", "linux", raising=False)
-
-    with pytest.raises(setup_env.SetupError) as error:
-        setup_env.ensure_ffmpeg_available(runner=missing_runner)
-
-    message = str(error.value)
-    assert "FFmpeg is required but was not detected" in message
-    assert "apt install ffmpeg" in message
+    assert "Unsupported platform" in str(error.value)
 
 
 def test_verify_installation_success(tmp_path: Path) -> None:

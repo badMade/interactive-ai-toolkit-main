@@ -147,7 +147,15 @@ def run_command(
         missing = command[0] if command else "command"
         raise SetupError(f"Required command not found: {missing}") from exc
     except subprocess.CalledProcessError as exc:
-        raise SetupError(f"Command failed: {' '.join(command)}") from exc
+        combined_output = ""
+        if capture_output:
+            stdout = exc.stdout or ""
+            stderr = exc.stderr or ""
+            combined_output = (stdout + stderr).strip()
+        message = f"Command failed: {' '.join(command)}"
+        if combined_output:
+            message = f"{message}\n{combined_output}"
+        raise SetupError(message) from exc
     if capture_output:
         output = (result.stdout or "") + (result.stderr or "")
         return output.strip()
@@ -157,31 +165,36 @@ def run_command(
 def ensure_ffmpeg_available(*, runner: CommandRunner | None = None) -> None:
     """Verify that FFmpeg is available on the host system."""
 
-    try:
-        version_output = run_command(
+    def probe() -> str:
+        return run_command(
             ["ffmpeg", "-version"],
             capture_output=True,
             runner=runner,
         )
-    except SetupError as error:
-        if os.name == "nt":
-            guidance = (
-                "Install FFmpeg from https://ffmpeg.org/download.html or "
-                "run `winget install Gyan.FFmpeg`."
+
+    try:
+        version_output = probe()
+    except SetupError:
+        installer = PROJECT_ROOT / "scripts" / "install_ffmpeg.sh"
+        if not installer.is_file():
+            raise SetupError(
+                "FFmpeg is required but automatic installation failed because the "
+                "installer script is missing."
             )
-        elif sys.platform == "darwin":
-            guidance = (
-                "Install FFmpeg via Homebrew using `brew install ffmpeg`."
+
+        logging.info("FFmpeg not found; invoking %s", installer)
+        try:
+            installation_output = run_command(
+                [str(installer)],
+                capture_output=True,
+                runner=runner,
             )
-        else:
-            guidance = (
-                "Install FFmpeg with your package manager, "
-                "e.g. `sudo apt install ffmpeg`."
-            )
-        raise SetupError(
-            "FFmpeg is required but was not detected. "
-            f"{guidance}"
-        ) from error
+            if installation_output:
+                logging.info("%s", installation_output.splitlines()[-1])
+        except SetupError:
+            raise
+
+        version_output = probe()
 
     if version_output:
         first_line = version_output.splitlines()[0]
