@@ -177,7 +177,9 @@ def ensure_ffmpeg_available(*, runner: CommandRunner | None = None) -> None:
     try:
         version_output = _probe()
     except SetupError as error:
-        if os.name == "nt":
+        platform = sys.platform.lower()
+        is_windows = os.name == "nt" or platform.startswith("win")
+        if is_windows:
             guidance = (
                 "Install FFmpeg from https://ffmpeg.org/download.html or "
                 "run `winget install Gyan.FFmpeg`."
@@ -185,6 +187,13 @@ def ensure_ffmpeg_available(*, runner: CommandRunner | None = None) -> None:
             raise SetupError(
                 "FFmpeg is required but was not detected. "
                 f"{guidance}"
+            ) from error
+
+        if os.name != "posix":
+            raise SetupError(
+                "FFmpeg is required but automatic installation is only supported "
+                "on POSIX-compliant systems. Install FFmpeg manually from "
+                "https://ffmpeg.org/download.html."
             ) from error
 
         install_script = PROJECT_ROOT / "scripts" / "install_ffmpeg.sh"
