@@ -17,6 +17,13 @@ from typing import Any, Dict
 from compatibility import ensure_numpy_compatible, NumpyCompatibilityError
 from shared_messages import MISSING_WHISPER_MESSAGE
 
+# Disable SSL verification for model downloads
+# (workaround for corporate proxies)
+ssl._create_default_https_context = ssl._create_unverified_context
+os.environ['PYTHONHTTPSVERIFY'] = '0'
+os.environ['CURL_CA_BUNDLE'] = ''
+os.environ['REQUESTS_CA_BUNDLE'] = ''
+
 
 # Exposed for test instrumentation;
 # patched in unit tests without requiring Whisper.
