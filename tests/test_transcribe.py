@@ -5,12 +5,22 @@ including file loading and Whisper model integration.
 """
 import io
 import os
+import ssl
 import sys
 import tempfile
 import unittest
 from argparse import Namespace
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+
+# Capture TLS defaults before importing :mod:`transcribe` so we can assert that
+# the CLI keeps certificate verification enabled and environment variables
+# untouched.
+_ORIGINAL_TLS_ENV = {
+    key: os.environ.get(key)
+    for key in ("REQUESTS_CA_BUNDLE", "CURL_CA_BUNDLE", "PYTHONHTTPSVERIFY")
+}
+_ORIGINAL_HTTPS_CONTEXT_FACTORY = ssl._create_default_https_context
 
 # Provide a lightweight stub so importing :mod:`transcribe` does not require
 # the heavy Whisper dependency during tests.
@@ -33,6 +43,19 @@ class TestTranscribe(unittest.TestCase):
         # Clean up the dummy file
         if self.test_file.exists():
             self.test_file.unlink()
+
+    def test_module_preserves_tls_environment(self):
+        """Importing the CLI should not clobber TLS configuration."""
+
+        for key, value in _ORIGINAL_TLS_ENV.items():
+            self.assertEqual(os.environ.get(key), value)
+
+    def test_module_does_not_disable_tls_verification(self):
+        """The HTTPS context factory must continue enforcing verification."""
+
+        self.assertIs(ssl._create_default_https_context, _ORIGINAL_HTTPS_CONTEXT_FACTORY)
+        context = ssl._create_default_https_context()
+        self.assertEqual(context.verify_mode, ssl.CERT_REQUIRED)
 
     def test_load_audio_path_valid(self):
         """
