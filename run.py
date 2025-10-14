@@ -116,8 +116,8 @@ class SetupLogStatus:
         Return True when there are recorded missing requirements.
 
         Returns:
-            bool: True if the `missing_requirements` collection contains any
-            items, otherwise False.
+            bool: True if the `missing_requirements` collection
+            contains any items, otherwise False.
         """
         return bool(self.missing_requirements)
 
@@ -125,7 +125,13 @@ class SetupLogStatus:
 def validate_setup_log(
     log_path: Path, requirements_path: Path
 ) -> SetupLogStatus:
-    """Inspect *log_path* and confirm that it satisfies project requirements."""
+    """
+    Inspect *log_path* and confirm that it satisfies project requirements.
+    Args:
+        log_path (Path): The path to the setup log file.
+        requirements_path (Path): The path to the requirements.txt file.
+    Returns:
+        SetupLogStatus: An object describing the state of the setup log."""
 
     required_packages = read_required_packages(requirements_path)
     required_keys = tuple(required_packages.keys())
@@ -296,7 +302,10 @@ def ensure_virtual_environment() -> None:
     setup_log_path = get_setup_log_path()
     status = validate_setup_log(setup_log_path, requirements_path)
     if not status.is_valid:
-        run_setup_env(reason=status.reason, missing_requirements=status.missing_requirements)
+        run_setup_env(
+            reason=status.reason,
+            missing_requirements=status.missing_requirements
+        )
         status = validate_setup_log(setup_log_path, requirements_path)
         if not status.is_valid:
             details: list[str] = []
@@ -309,7 +318,8 @@ def ensure_virtual_environment() -> None:
             if detail_text:
                 detail_text = f" ({detail_text})"
             raise RuntimeError(
-                "Environment setup is incomplete even after running setup_env.py"
+                "Environment setup is incomplete "
+                "even after running setup_env.py"
                 f"{detail_text}."
             )
 
