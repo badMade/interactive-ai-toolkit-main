@@ -124,9 +124,10 @@ def _missing_whisper_message(exc: ModuleNotFoundError) -> str | None:
     message = str(exc).strip()
     current: BaseException | None = exc
     while current is not None:
-        is_missing_whisper = isinstance(current, ModuleNotFoundError) and getattr(
-            current, "name", None
-        ) == "whisper"
+        is_missing_whisper = (
+            isinstance(current, ModuleNotFoundError)
+            and getattr(current, "name", None) == "whisper"
+        )
         if is_missing_whisper:
             return message or str(current).strip()
         current = current.__cause__
