@@ -10,7 +10,14 @@ from importlib import import_module
 from pathlib import Path
 from typing import Callable, Iterable, Sequence
 
-import transcribe
+try:
+    import transcribe
+except ModuleNotFoundError:
+    # When executed as ``python scripts/self_debug.py`` the repository root is
+    # not automatically added to ``sys.path``. Ensure the parent directory is
+    # importable so the ``transcribe`` helper can be located.
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    import transcribe
 
 
 class DiagnosticError(RuntimeError):
