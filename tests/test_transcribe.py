@@ -4,7 +4,9 @@ This module contains test cases for audio transcription functionality,
 including file loading and Whisper model integration.
 """
 import io
+import os
 import sys
+import tempfile
 import unittest
 from argparse import Namespace
 from pathlib import Path
@@ -102,7 +104,12 @@ class TestTranscribe(unittest.TestCase):
                                           mock_load_audio_path):
         """Ensures the CLI exits cleanly when Whisper is unavailable."""
 
-        args = Namespace(audio_path="audio.mp3", model="base", fp16=False)
+        args = Namespace(
+            audio_path="audio.mp3",
+            model="base",
+            fp16=False,
+            ca_bundle=None,
+        )
         mock_parse_arguments.return_value = args
         mock_load_audio_path.return_value = Path("audio.mp3")
 
@@ -129,7 +136,12 @@ class TestTranscribe(unittest.TestCase):
     ):
         """The CLI should exit cleanly when NumPy is incompatible."""
 
-        args = Namespace(audio_path="audio.mp3", model="base", fp16=False)
+        args = Namespace(
+            audio_path="audio.mp3",
+            model="base",
+            fp16=False,
+            ca_bundle=None,
+        )
         mock_parse_arguments.return_value = args
         mock_load_audio_path.return_value = Path("audio.mp3")
 
@@ -143,6 +155,39 @@ class TestTranscribe(unittest.TestCase):
 
         assert exit_info.exception.code == 1
         assert "numpy<2" in stderr.getvalue()
+
+
+    def test_configure_certificate_bundle_sets_environment(self):
+        """A valid CA bundle should configure TLS environment variables."""
+
+        with tempfile.NamedTemporaryFile("w", delete=False) as handle:
+            handle.write("test certificate")
+            bundle_path = handle.name
+
+        previous_values = {
+            key: os.environ.get(key)
+            for key in ("REQUESTS_CA_BUNDLE", "CURL_CA_BUNDLE", "SSL_CERT_FILE")
+        }
+
+        try:
+            transcribe.configure_certificate_bundle(bundle_path)
+            expected = str(Path(bundle_path).resolve())
+            assert os.environ["REQUESTS_CA_BUNDLE"] == expected
+            assert os.environ["CURL_CA_BUNDLE"] == expected
+            assert os.environ["SSL_CERT_FILE"] == expected
+        finally:
+            Path(bundle_path).unlink(missing_ok=True)
+            for key, value in previous_values.items():
+                if value is None:
+                    os.environ.pop(key, None)
+                else:
+                    os.environ[key] = value
+
+    def test_configure_certificate_bundle_missing_file(self):
+        """The helper should raise when the bundle path is invalid."""
+
+        with self.assertRaises(FileNotFoundError):
+            transcribe.configure_certificate_bundle("missing.pem")
 
 
 if __name__ == "__main__":

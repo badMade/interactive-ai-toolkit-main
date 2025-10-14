@@ -6,7 +6,6 @@ file and model are configured for local experimentation but can be overridden
 on the command line.
 """
 import os
-import ssl
 import sys
 from argparse import ArgumentParser, Namespace
 from functools import lru_cache
@@ -17,12 +16,6 @@ from typing import Any, Dict
 
 from compatibility import ensure_numpy_compatible, NumpyCompatibilityError
 from shared_messages import MISSING_WHISPER_MESSAGE
-
-# Disable SSL verification for model downloads (workaround for corporate proxies)
-ssl._create_default_https_context = ssl._create_unverified_context
-os.environ['PYTHONHTTPSVERIFY'] = '0'
-os.environ['CURL_CA_BUNDLE'] = ''
-os.environ['REQUESTS_CA_BUNDLE'] = ''
 
 
 # Exposed for test instrumentation;
@@ -78,6 +71,16 @@ def parse_arguments() -> Namespace:
         action="store_true",
         help="Enable fp16 inference when supported by your hardware.",
     )
+    parser.add_argument(
+        "--ca-bundle",
+        default=None,
+        help=(
+            "Path to a PEM file containing additional certificate authorities. "
+            "The bundle is added to REQUESTS_CA_BUNDLE, CURL_CA_BUNDLE, and "
+            "SSL_CERT_FILE to support TLS inspection proxies without "
+            "disabling verification."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -97,6 +100,30 @@ def load_audio_path(raw_path: str) -> Path:
     if not audio_path.is_file():
         raise FileNotFoundError(f"Audio file not found: {audio_path}")
     return audio_path
+
+
+def configure_certificate_bundle(raw_bundle_path: str | None) -> None:
+    """Update TLS trust configuration to include a custom certificate bundle.
+
+    Args:
+        raw_bundle_path: Optional string path to a PEM-encoded bundle supplied
+            by the caller.
+
+    Raises:
+        FileNotFoundError: If ``raw_bundle_path`` is provided but does not
+            reference an existing file.
+    """
+
+    if raw_bundle_path is None:
+        return
+
+    bundle_path = Path(raw_bundle_path).expanduser().resolve()
+    if not bundle_path.is_file():
+        raise FileNotFoundError(f"CA bundle not found: {bundle_path}")
+
+    bundle_str = str(bundle_path)
+    for env_var in ("REQUESTS_CA_BUNDLE", "CURL_CA_BUNDLE", "SSL_CERT_FILE"):
+        os.environ[env_var] = bundle_str
 
 
 def transcribe_audio(audio_path: Path,
@@ -146,6 +173,7 @@ def main() -> None:
     prints the transcript text returned by Whisper.
     """
     args = parse_arguments()
+    configure_certificate_bundle(args.ca_bundle)
     audio_path = load_audio_path(args.audio_path)
     try:
         result = transcribe_audio(audio_path, args.model, args.fp16)

@@ -118,6 +118,24 @@ python -m pip install openai
 The optional client is needed only if you plan to call the hosted Whisper API as
 an alternative to local transcription.
 
+### 5. Trusted certificates behind corporate proxies
+
+If your network intercepts HTTPS traffic, install the proxy's root certificate
+into your operating system trust store (Keychain Access on macOS, `certmgr.msc`
+on Windows, or `/usr/local/share/ca-certificates` on Linux). Restart the shell
+so Python uses the updated trust chain. When you cannot modify the global store,
+save the root certificate in PEM format and run the tools with:
+
+```bash
+export REQUESTS_CA_BUNDLE=/path/to/proxy-root.pem
+export CURL_CA_BUNDLE=/path/to/proxy-root.pem
+export SSL_CERT_FILE=/path/to/proxy-root.pem
+```
+
+You can also pass the path directly to the CLI using `--ca-bundle` as shown
+below. Avoid disabling TLS verification; trusting the certificate keeps model
+downloads secure while resolving proxy errors.
+
 ## Usage
 
 ### Hands-on Walkthrough
@@ -157,7 +175,7 @@ an alternative to local transcription.
 `transcribe.py` wraps the Whisper model in a small command-line tool.
 
 ```bash
-python transcribe.py [audio_path] [--model MODEL_NAME] [--fp16]
+python transcribe.py [audio_path] [--model MODEL_NAME] [--fp16] [--ca-bundle PATH]
 ```
 
 - `audio_path` (optional): Path to the audio file you want to transcribe. The
