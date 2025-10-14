@@ -115,7 +115,9 @@ class SetupLogStatus:
         return bool(self.missing_requirements)
 
 
-def validate_setup_log(log_path: Path, requirements_path: Path) -> SetupLogStatus:
+def validate_setup_log(
+    log_path: Path, requirements_path: Path
+) -> SetupLogStatus:
     """Inspect *log_path* and confirm that it satisfies project requirements."""
 
     required_packages = read_required_packages(requirements_path)
