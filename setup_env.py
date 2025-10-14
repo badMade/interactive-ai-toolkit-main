@@ -14,6 +14,8 @@ from typing import Iterable, Protocol
 
 from logging.handlers import RotatingFileHandler
 
+from run import SETUP_LOG_RELATIVE_PATH, read_required_packages
+
 
 class CommandRunner(Protocol):
     """Protocol to allow dependency injection for subprocess execution."""
@@ -46,6 +48,8 @@ DEFAULT_VALIDATION_PACKAGES: tuple[str, ...] = (
     "transformers",
     "soundfile",
     "whisper",
+    "sentencepiece",
+    "numpy",
     "pytest",
 )
 
@@ -313,6 +317,8 @@ def write_setup_log(
         "installed_packages": installed_packages,
     }
 
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+
     with open(log_path, "w", encoding="utf-8") as f:
         json.dump(log_data, f, indent=2)
 
@@ -327,7 +333,7 @@ def main() -> int:
     project_root = PROJECT_ROOT
     venv_path = project_root / ".venv"
     requirements_path = project_root / "requirements.txt"
-    setup_log_path = project_root / ".setup_log.json"
+    setup_log_path = project_root / SETUP_LOG_RELATIVE_PATH
 
     try:
         ensure_requirements_file(requirements_path)
@@ -335,9 +341,16 @@ def main() -> int:
         create_virtualenv(venv_path)
         venv_python = get_venv_python_path(venv_path)
         install_requirements(venv_python, requirements_path)
+        required_packages = read_required_packages(requirements_path)
+        packages_to_verify: tuple[str, ...]
+        if required_packages:
+            packages_to_verify = tuple(required_packages.keys())
+        else:
+            packages_to_verify = DEFAULT_VALIDATION_PACKAGES
+
         installed_packages = verify_installation(
             venv_python,
-            packages=DEFAULT_VALIDATION_PACKAGES,
+            packages=packages_to_verify,
         )
         write_setup_log(setup_log_path, installed_packages, requirements_path)
     except SetupError as error:

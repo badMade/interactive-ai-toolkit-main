@@ -7,10 +7,13 @@ import json
 import os
 import subprocess
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 from types import ModuleType
+from typing import Mapping, Sequence
 
 PROJECT_ROOT = Path(__file__).resolve().parent
+SETUP_LOG_RELATIVE_PATH = Path("logs") / "setup_state.json"
 
 
 def get_project_root() -> Path:
@@ -42,7 +45,7 @@ def get_requirements_script_path() -> Path:
 def get_setup_log_path() -> Path:
     """Return the path to the setup log file."""
 
-    return get_project_root() / ".setup_log.json"
+    return get_project_root() / SETUP_LOG_RELATIVE_PATH
 
 
 def get_setup_env_script_path() -> Path:
@@ -57,60 +60,161 @@ def get_requirements_path() -> Path:
     return get_project_root() / "requirements.txt"
 
 
-def verify_setup_log() -> bool:
-    """Check if setup_env.py has been run successfully.
+PACKAGE_NAME_ALIASES: Mapping[str, str] = {
+    "openai_whisper": "whisper",
+}
 
-    Returns:
-        True if setup log exists and all required packages are installed.
-    """
-    setup_log_path = get_setup_log_path()
-    requirements_path = get_requirements_path()
 
-    if not setup_log_path.exists():
-        return False
+def _canonical_package_name(name: str) -> str:
+    """Return a normalized representation of *name* for comparisons."""
 
-    if not requirements_path.exists():
-        return False
+    normalized = name.replace("-", "_").strip().lower()
+    return PACKAGE_NAME_ALIASES.get(normalized, normalized)
+
+
+def read_required_packages(requirements_path: Path) -> dict[str, str]:
+    """Parse *requirements_path* and return canonical requirement names."""
+
+    if not requirements_path.is_file():
+        raise RuntimeError(
+            "Could not find requirements.txt. "
+            "Please add it before running the CLI."
+        )
+
+    cleaned: dict[str, str] = {}
+    with open(requirements_path, "r", encoding="utf-8") as handle:
+        for raw_line in handle:
+            stripped = raw_line.strip()
+            if not stripped or stripped.startswith("#"):
+                continue
+            candidate = stripped.split("#", 1)[0].strip()
+            candidate = candidate.split(";", 1)[0].strip()
+            for delimiter in ("==", ">=", "<=", "~=", "!=", ">", "<"):
+                if delimiter in candidate:
+                    candidate = candidate.split(delimiter, 1)[0].strip()
+            if "[" in candidate:
+                candidate = candidate.split("[", 1)[0].strip()
+            if not candidate:
+                continue
+            canonical = _canonical_package_name(candidate)
+            cleaned[canonical] = candidate
+    return cleaned
+
+
+@dataclass(frozen=True)
+class SetupLogStatus:
+    """Describe the state of the setup log and unmet requirements."""
+
+    is_valid: bool
+    reason: str | None
+    missing_requirements: tuple[str, ...]
+    data: Mapping[str, object] | None
+
+    @property
+    def has_missing_requirements(self) -> bool:
+        return bool(self.missing_requirements)
+
+
+def validate_setup_log(log_path: Path, requirements_path: Path) -> SetupLogStatus:
+    """Inspect *log_path* and confirm that it satisfies project requirements."""
+
+    required_packages = read_required_packages(requirements_path)
+    required_keys = tuple(required_packages.keys())
+
+    if not log_path.is_file():
+        return SetupLogStatus(
+            is_valid=False,
+            reason="setup log not found",
+            missing_requirements=tuple(),
+            data=None,
+        )
 
     try:
-        with open(setup_log_path, "r", encoding="utf-8") as f:
-            log_data = json.load(f)
+        with open(log_path, "r", encoding="utf-8") as handle:
+            log_data = json.load(handle)
+    except json.JSONDecodeError as exc:  # pragma: no cover - defensive guard
+        return SetupLogStatus(
+            is_valid=False,
+            reason=f"malformed setup log: {exc}",
+            missing_requirements=tuple(),
+            data=None,
+        )
+    except OSError as exc:
+        return SetupLogStatus(
+            is_valid=False,
+            reason=f"unable to read setup log: {exc}",
+            missing_requirements=tuple(),
+            data=None,
+        )
 
-        if not log_data.get("setup_completed", False):
-            return False
+    if not isinstance(log_data, dict):
+        return SetupLogStatus(
+            is_valid=False,
+            reason="setup log has unexpected structure",
+            missing_requirements=tuple(),
+            data=None,
+        )
 
-        installed_packages = log_data.get("installed_packages", {})
+    if not log_data.get("setup_completed"):
+        return SetupLogStatus(
+            is_valid=False,
+            reason="setup has not been marked complete",
+            missing_requirements=tuple(),
+            data=log_data,
+        )
 
-        # Read requirements.txt to get expected packages
-        with open(requirements_path, "r", encoding="utf-8") as f:
-            requirements = f.read().strip().split("\n")
+    installed_packages = log_data.get("installed_packages")
+    if not isinstance(installed_packages, Mapping):
+        return SetupLogStatus(
+            is_valid=False,
+            reason="setup log is missing installed package metadata",
+            missing_requirements=tuple(),
+            data=log_data,
+        )
 
-        # Parse package names from requirements (handle versions, etc.)
-        required_packages = set()
-        for req in requirements:
-            req = req.strip()
-            if not req or req.startswith("#"):
-                continue
-            # Extract package name (handle versions like package>=1.0)
-            package_name = req.split("==")[0].split(">=")[0].split("<=")[0]
-            package_name = package_name.split(">")[0].split("<")[0].strip()
-            # Normalize package name (openai-whisper -> whisper)
-            if package_name == "openai-whisper":
-                package_name = "whisper"
-            required_packages.add(package_name)
+    canonical_installed = {
+        _canonical_package_name(str(package_name))
+        for package_name in installed_packages.keys()
+    }
 
-        # Check if all required packages are in the log
-        for package in required_packages:
-            if package not in installed_packages:
-                return False
+    missing_keys = [
+        key
+        for key in required_keys
+        if key and key not in canonical_installed
+    ]
 
-        return True
+    if missing_keys:
+        missing_display = tuple(required_packages[key] for key in missing_keys)
+        return SetupLogStatus(
+            is_valid=False,
+            reason="setup log is missing required packages",
+            missing_requirements=missing_display,
+            data=log_data,
+        )
 
-    except (json.JSONDecodeError, KeyError, OSError):
-        return False
+    return SetupLogStatus(
+        is_valid=True,
+        reason=None,
+        missing_requirements=tuple(),
+        data=log_data,
+    )
 
 
-def run_setup_env() -> None:
+def verify_setup_log() -> bool:
+    """Return ``True`` when the recorded setup log satisfies requirements."""
+
+    status = validate_setup_log(
+        get_setup_log_path(),
+        get_requirements_path(),
+    )
+    return status.is_valid
+
+
+def run_setup_env(
+    *,
+    reason: str | None = None,
+    missing_requirements: Sequence[str] | None = None,
+) -> None:
     """Run setup_env.py to configure the environment."""
     setup_script = get_setup_env_script_path()
 
@@ -120,7 +224,17 @@ def run_setup_env() -> None:
             "Cannot configure the environment."
         )
 
-    print("Running environment setup...")
+    details: list[str] = []
+    if reason:
+        details.append(reason)
+    if missing_requirements:
+        missing = ", ".join(sorted(set(missing_requirements)))
+        details.append(f"missing requirements: {missing}")
+
+    if details:
+        print(f"Running environment setup ({'; '.join(details)})...")
+    else:
+        print("Running environment setup...")
     try:
         subprocess.run(
             [sys.executable, str(setup_script)],
@@ -129,8 +243,12 @@ def run_setup_env() -> None:
             capture_output=False,
         )
     except subprocess.CalledProcessError as exc:
+        context = "; ".join(details)
+        if context:
+            context = f" ({context})"
         raise RuntimeError(
-            "Failed to complete environment setup. "
+            "Failed to complete environment setup"
+            f"{context}. "
             "Please run setup_env.py manually and fix any errors."
         ) from exc
 
@@ -164,6 +282,27 @@ def ensure_virtual_environment() -> None:
     venv_path = get_virtualenv_path()
     if is_running_inside_virtualenv(venv_path):
         return
+
+    requirements_path = get_requirements_path()
+    setup_log_path = get_setup_log_path()
+    status = validate_setup_log(setup_log_path, requirements_path)
+    if not status.is_valid:
+        run_setup_env(reason=status.reason, missing_requirements=status.missing_requirements)
+        status = validate_setup_log(setup_log_path, requirements_path)
+        if not status.is_valid:
+            details: list[str] = []
+            if status.reason:
+                details.append(status.reason)
+            if status.missing_requirements:
+                missing = ", ".join(status.missing_requirements)
+                details.append(f"missing requirements: {missing}")
+            detail_text = "; ".join(details)
+            if detail_text:
+                detail_text = f" ({detail_text})"
+            raise RuntimeError(
+                "Environment setup is incomplete even after running setup_env.py"
+                f"{detail_text}."
+            )
 
     ensure_script = get_requirements_script_path()
     if not ensure_script.is_file():
@@ -250,11 +389,6 @@ def load_transcribe_module() -> ModuleType:
 
 def main() -> None:
     """Import and execute the project's primary command-line entry point."""
-
-    # Check if setup has been completed, run setup_env.py if needed
-    if not verify_setup_log():
-        print("Setup not complete or requirements have changed.")
-        run_setup_env()
 
     ensure_virtual_environment()
     module = load_transcribe_module()
