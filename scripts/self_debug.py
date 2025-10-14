@@ -10,14 +10,13 @@ from importlib import import_module
 from pathlib import Path
 from typing import Callable, Iterable, Sequence
 
-try:
-    import transcribe
-except ModuleNotFoundError:
+if __package__ in {None, ""}:
     # When executed as ``python scripts/self_debug.py`` the repository root is
     # not automatically added to ``sys.path``. Ensure the parent directory is
     # importable so the ``transcribe`` helper can be located.
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-    import transcribe
+
+import transcribe
 
 
 class DiagnosticError(RuntimeError):
@@ -173,7 +172,7 @@ def render_results(results: Sequence[DiagnosticResult]) -> str:
 def main(argv: Sequence[str] | None = None) -> int:
     """Entry point that prints JSON or text diagnostics based on *argv*."""
 
-    args = list(argv or sys.argv[1:])
+    args = list(sys.argv[1:] if argv is None else argv)
     as_json = "--json" in args
     if as_json:
         args.remove("--json")
