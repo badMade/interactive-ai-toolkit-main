@@ -31,7 +31,12 @@ def _write_valid_setup_log(tmp_path: Path, requirements_path: Path) -> Path:
     log_path = tmp_path / run.SETUP_LOG_RELATIVE_PATH
     log_path.parent.mkdir(parents=True, exist_ok=True)
     required_packages = run.read_required_packages(requirements_path)
-    installed = {name: "installed" for name in required_packages}
+    installed = {}
+    for name in required_packages:
+        if name == "numpy":
+            installed[name] = "1.26.4"
+        else:
+            installed[name] = "installed"
     log_path.write_text(
         json.dumps(
             {
@@ -169,6 +174,65 @@ def test_missing_setup_log_triggers_setup_env(monkeypatch, tmp_path: Path) -> No
             return subprocess.CompletedProcess(command, 0, "", "")
         if check and command == ["/usr/bin/python3", str(ensure_script)]:
             assert log_path.is_file()
+            return subprocess.CompletedProcess(command, 0, "", "")
+        if command[0] == str(venv_python):
+            return subprocess.CompletedProcess(command, 0, "", "")
+        raise AssertionError(f"Unexpected command: {command}")
+
+    monkeypatch.setattr(run.subprocess, "run", fake_run)
+
+    with pytest.raises(SystemExit) as exc_info:
+        run.ensure_virtual_environment()
+
+    assert exc_info.value.code == 0
+    assert executed_commands[0] == ["/usr/bin/python3", str(setup_env_script)]
+    assert executed_commands[1] == ["/usr/bin/python3", str(ensure_script)]
+    assert executed_commands[2][0] == str(venv_python)
+
+
+def test_version_mismatch_triggers_setup_env(monkeypatch, tmp_path: Path) -> None:
+    scripts_dir = tmp_path / "scripts"
+    scripts_dir.mkdir()
+    ensure_script = scripts_dir / "ensure_requirements.py"
+    ensure_script.write_text("print('noop')\n")
+
+    setup_env_script = tmp_path / "setup_env.py"
+    setup_env_script.write_text("print('setup')\n")
+
+    requirements_path = _create_requirements(tmp_path)
+    log_path = _write_valid_setup_log(tmp_path, requirements_path)
+    log_data = json.loads(log_path.read_text())
+    log_data["installed_packages"]["numpy"] = "2.0.0"
+    log_path.write_text(json.dumps(log_data, indent=2))
+
+    venv_path = tmp_path / ".venv"
+    bin_dir = venv_path / "bin"
+    bin_dir.mkdir(parents=True)
+    venv_python = bin_dir / "python"
+    venv_python.write_text("#!/usr/bin/env python3\n")
+    (venv_path / "pyvenv.cfg").write_text("home = /usr/bin/python\n")
+
+    monkeypatch.setattr(run, "PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(run, "is_running_inside_virtualenv", lambda _: False)
+    monkeypatch.setattr(run, "get_virtualenv_python_path", lambda _: venv_python)
+    monkeypatch.setattr(run.sys, "argv", ["run.py"])
+    monkeypatch.setattr(run.sys, "executable", "/usr/bin/python3")
+
+    executed_commands: list[list[str]] = []
+
+    def fake_run(
+        command: list[str] | tuple[str, ...],
+        *,
+        check: bool,
+        text: bool,
+        capture_output: bool,
+        env: dict[str, str] | None = None,
+    ) -> subprocess.CompletedProcess[str]:
+        executed_commands.append(list(command))
+        if check and command == ["/usr/bin/python3", str(setup_env_script)]:
+            _write_valid_setup_log(tmp_path, requirements_path)
+            return subprocess.CompletedProcess(command, 0, "", "")
+        if check and command == ["/usr/bin/python3", str(ensure_script)]:
             return subprocess.CompletedProcess(command, 0, "", "")
         if command[0] == str(venv_python):
             return subprocess.CompletedProcess(command, 0, "", "")
