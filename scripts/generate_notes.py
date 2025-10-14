@@ -29,8 +29,9 @@ Purpose of the Program
 
 Prerequisites
 -------------
-- Python 3.10 or newer (use virtual environments to isolate dependencies).
-- FFmpeg installed and available on PATH so Whisper can decode audio
+- Python 3.12 (the pinned dependency set in ``requirements.txt`` is validated
+  against this interpreter).
+- FFmpeg installed and available on PATH so Whisper can preprocess audio
   (verify with ``ffmpeg -version``).
 - Internet access the first time Whisper and SpeechT5 model weights
   download from PyPI and Hugging Face.
@@ -45,15 +46,20 @@ Installation Instructions
    - macOS/Linux (bash or zsh): ``python3 -m venv .venv`` then
      ``source .venv/bin/activate``
 2. Upgrade pip: ``python -m pip install --upgrade pip``
-3. Install the compatible NumPy build: ``python -m pip install "numpy<2"``
-4. Install dependencies: ``python -m pip install -r requirements.txt``
-5. Install FFmpeg (required for Whisper audio decoding).
+3. Install the pinned dependencies: ``python -m pip install -r requirements.txt``
+4. Install FFmpeg (required for Whisper audio preprocessing).
    - Windows: download from https://www.gyan.dev/ffmpeg/builds/ and add
      ``ffmpeg.exe`` to PATH or copy it beside ``transcribe.py``
    - macOS: ``brew install ffmpeg``
    - Linux: ``sudo apt install ffmpeg``
-6. (Optional) Install the OpenAI Python client:
+   - Fallback: ``python -m pip install \"imageio[ffmpeg]\"`` to vendor a
+     cross-platform binary when system packages are unavailable.
+5. (Optional) Install the OpenAI Python client:
     ``python -m pip install openai``
+
+If you are using macOS on x86_64 and the environment becomes inconsistent,
+run ``./fix_env.sh`` from the project root to recreate a fresh Python 3.12
+virtual environment with the vetted, pinned requirements.
 
 Why Some Files Are Not Tracked
 ------------------------------
@@ -80,11 +86,10 @@ Hands-on Walkthrough
      ``source .venv/bin/activate``
 2. Upgrade packaging tooling and install dependencies:
    ``python -m pip install --upgrade pip``
-   ``python -m pip install "numpy<2"``
    ``python -m pip install -r requirements.txt``.
 3. Install FFmpeg (Windows builds from Gyan.dev, ``brew install ffmpeg`` on
-   macOS, or ``sudo apt install ffmpeg`` on Debian/Ubuntu) and confirm the
-   command works with ``ffmpeg -version``.
+   macOS, or ``sudo apt install ffmpeg`` on Debian/Ubuntu). After installation,
+   run ``ffmpeg -version`` to confirm the command is available on PATH.
 4. Copy or record an audio sample (for example ``lesson_recording.mp3``)
    into the project root.
 5. Run offline transcription: ``python transcribe.py [audio_path]
@@ -98,9 +103,9 @@ Optional API Integration
 ------------------------
 1. Install the OpenAI client if needed: ``python -m pip install openai``.
 2. Configure ``OPENAI_API_KEY`` for repeatable use.
-   - Windows (PowerShell): ``setx OPENAI_API_KEY "sk-..."`` then start a
+   - Windows (PowerShell): ``setx OPENAI_API_KEY \"sk-...\"`` then start a
      new shell; for the current session use
-     ``$env:OPENAI_API_KEY = "sk-..."``.
+     ``$env:OPENAI_API_KEY = \"sk-...\"``.
    - macOS/Linux (bash or zsh):
      ``echo 'export OPENAI_API_KEY="sk-..."' >> ~/.bashrc`` then
      ``source ~/.bashrc``; to scope it to one session run
@@ -114,10 +119,9 @@ Quick Setup Cheatsheet
 ----------------------
 - ``python -m venv .venv`` → activate it for your platform.
 - ``python -m pip install --upgrade pip``
-- ``python -m pip install "numpy<2"``
 - ``python -m pip install -r requirements.txt``
-- Ensure ``ffmpeg -version`` succeeds, then run ``python transcribe.py`` or
-  ``python tts.py`` as needed.
+- After installing FFmpeg, run ``ffmpeg -version`` to confirm the command is on
+  PATH, then run ``python transcribe.py`` or ``python tts.py`` as needed.
 
 Troubleshooting Tips
 --------------------
@@ -126,8 +130,10 @@ Troubleshooting Tips
 - ``ImportError`` for ``sentencepiece`` or ``soundfile`` when running
   ``tts.py``: reinstall dependencies via
   ``python -m pip install -r requirements.txt``.
-- NumPy 2.x accidentally installed: reinstall the compatible release with
-  ``python -m pip install "numpy<2"`` before running the toolkit again.
+- NumPy 2.x accidentally installed: reinstall the pinned dependency set with
+  ``python -m pip install -r requirements.txt`` before running the toolkit
+  again (macOS users can run ``./fix_env.sh`` to rebuild the entire virtual
+  environment).
 - PyTorch installation issues on Windows: install the CPU wheel
   ``python -m pip install torch
   --index-url https://download.pytorch.org/whl/cpu``.
@@ -139,6 +145,15 @@ Troubleshooting Tips
   bash ``export OPENAI_API_KEY="sk-..."``).
 - Logs and debug output: inspect terminal logs; Hugging Face downloads are
   cached automatically under the user's home directory.
+
+Recent Maintenance
+------------------
+- 2024-10-21: Hardened ``transcribe.py`` so HTTPS certificate verification
+  stays enabled by default. The CLI now only adjusts TLS settings when a
+  custom ``--ca-bundle`` path is provided, preserving secure defaults for
+  all other runs. Added regression tests ensuring TLS configuration and
+  environment variables remain untouched at import time. Re-run the
+  automated suite with ``pytest`` after pulling the latest changes.
 """
     ).strip()
 
