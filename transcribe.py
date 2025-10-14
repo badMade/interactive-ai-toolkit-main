@@ -16,7 +16,8 @@ from typing import Any, Dict
 from shared_messages import MISSING_WHISPER_MESSAGE
 
 
-# Exposed for test instrumentation; patched in unit tests without requiring Whisper.
+# Exposed for test instrumentation;
+# patched in unit tests without requiring Whisper.
 whisper: ModuleType | None = None
 
 
