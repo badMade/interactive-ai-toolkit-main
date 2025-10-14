@@ -61,9 +61,9 @@ python -m pip install --upgrade pip
 log "Writing pinned requirements.txt ..."
 cat <<'REQEOF' > requirements.txt
 numpy==1.26.4
-torch==2.2.2
-torchvision==0.17.2
-torchaudio==2.2.2
+torch==2.4.0
+torchvision==0.19.0
+torchaudio==2.4.0
 openai-whisper==20250625
 transformers==4.57.0
 soundfile==0.13.1
