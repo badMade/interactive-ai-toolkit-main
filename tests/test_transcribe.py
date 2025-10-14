@@ -218,21 +218,26 @@ class TestTranscribe(unittest.TestCase):
         with self.assertRaises(FileNotFoundError):
             transcribe.configure_certificate_bundle("missing.pem")
 
-    @patch("transcribe.shutil.which", return_value="/usr/bin/ffmpeg")
-    def test_ensure_ffmpeg_available_success(self, mock_which):
+    @patch("transcribe.ffmpeg_support.ensure_ffmpeg_available")
+    def test_ensure_ffmpeg_available_success(self, mock_ensure):
         """The helper should return silently when ffmpeg is available."""
 
         ensure_ffmpeg_available()
-        mock_which.assert_called_once_with("ffmpeg")
+        mock_ensure.assert_called_once_with()
 
-    @patch("transcribe.shutil.which", return_value=None)
-    def test_ensure_ffmpeg_available_failure(self, mock_which):
+    @patch(
+        "transcribe.ffmpeg_support.ensure_ffmpeg_available",
+        side_effect=transcribe.ffmpeg_support.FFmpegInstallationError(
+            transcribe.FFMPEG_INSTALL_MESSAGE
+        ),
+    )
+    def test_ensure_ffmpeg_available_failure(self, mock_ensure):
         """Missing ffmpeg should exit with actionable guidance."""
 
         with self.assertRaises(SystemExit) as exit_info:
             ensure_ffmpeg_available()
 
-        mock_which.assert_called_once_with("ffmpeg")
+        mock_ensure.assert_called_once_with()
         self.assertEqual(exit_info.exception.code, transcribe.FFMPEG_INSTALL_MESSAGE)
 
 

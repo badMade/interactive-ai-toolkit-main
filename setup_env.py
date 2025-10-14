@@ -16,6 +16,7 @@ from typing import Iterable, Protocol
 from logging.handlers import RotatingFileHandler
 
 from compatibility import NumpyCompatibilityError, validate_numpy_version
+import ffmpeg_support
 from run import SETUP_LOG_RELATIVE_PATH, read_required_packages
 from shared_messages import MISSING_WHISPER_MESSAGE
 
@@ -264,49 +265,10 @@ def _virtualenv_uses_required_python(
 def ensure_ffmpeg_available(*, runner: CommandRunner | None = None) -> None:
     """Verify that FFmpeg is available on the host system."""
 
-    def _probe() -> str:
-        return run_command(
-            ["ffmpeg", "-version"],
-            capture_output=True,
-            runner=runner,
-        )
-
     try:
-        version_output = _probe()
-    except SetupError as error:
-        platform = sys.platform.lower()
-        is_windows = os.name == "nt" or platform.startswith("win")
-        if is_windows:
-            guidance = (
-                "Install FFmpeg from https://ffmpeg.org/download.html or "
-                "run `winget install Gyan.FFmpeg`."
-            )
-            raise SetupError(
-                "FFmpeg is required but was not detected. "
-                f"{guidance}"
-            ) from error
-
-        if os.name != "posix":
-            raise SetupError(
-                "FFmpeg is required but automatic installation is only supported "
-                "on POSIX-compliant systems. Install FFmpeg manually from "
-                "https://ffmpeg.org/download.html."
-            ) from error
-
-        install_script = PROJECT_ROOT / "scripts" / "install_ffmpeg.sh"
-        try:
-            run_command([str(install_script)], capture_output=True, runner=runner)
-        except SetupError as install_error:
-            raise SetupError(
-                "FFmpeg is required but automatic installation failed.\n"
-                f"{install_error}"
-            ) from install_error
-
-        version_output = _probe()
-
-    if version_output:
-        first_line = version_output.splitlines()[0]
-        logging.info("FFmpeg detected: %s", first_line)
+        ffmpeg_support.ensure_ffmpeg_available(runner=runner)
+    except ffmpeg_support.FFmpegInstallationError as exc:
+        raise SetupError(str(exc)) from exc
 
 
 def ensure_requirements_file(requirements_path: Path) -> Path:
