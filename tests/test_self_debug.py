@@ -64,31 +64,63 @@ def test_diagnose_markitdown_reports_status(monkeypatch) -> None:
     assert "uvx" in result.details
 
 
+def test_diagnose_whisper_available() -> None:
+    result = self_debug.diagnose_whisper(importer=lambda name: object())
+
+    assert result.status == "available"
+    assert "successfully" in result.details
+
+
+def test_diagnose_whisper_unavailable() -> None:
+    def _importer(_: str) -> None:
+        raise ModuleNotFoundError("whisper")
+
+    result = self_debug.diagnose_whisper(importer=_importer)
+
+    assert result.status == "unavailable"
+    assert self_debug.transcribe.MISSING_WHISPER_MESSAGE == result.recommendation
+
+
 def test_main_respects_json_flag(monkeypatch, capsys) -> None:
-    result = self_debug.DiagnosticResult(
+    markitdown_result = self_debug.DiagnosticResult(
         name="markitdown",
         status="available",
         details="uvx markitdown",
         recommendation=None,
     )
-    monkeypatch.setattr(self_debug, "diagnose_markitdown", lambda: result)
+    whisper_result = self_debug.DiagnosticResult(
+        name="whisper",
+        status="available",
+        details="module",
+        recommendation=None,
+    )
+    monkeypatch.setattr(self_debug, "diagnose_markitdown", lambda: markitdown_result)
+    monkeypatch.setattr(self_debug, "diagnose_whisper", lambda: whisper_result)
 
     exit_code = self_debug.main(["--json"])
 
     assert exit_code == 0
     output = capsys.readouterr().out
     assert "markitdown" in output
+    assert "whisper" in output
     assert output.strip().startswith("[")
 
 
 def test_main_handles_error_status(monkeypatch, capsys) -> None:
-    result = self_debug.DiagnosticResult(
+    markitdown_result = self_debug.DiagnosticResult(
         name="markitdown",
         status="unavailable",
         details="missing command",
         recommendation="install uv",
     )
-    monkeypatch.setattr(self_debug, "diagnose_markitdown", lambda: result)
+    whisper_result = self_debug.DiagnosticResult(
+        name="whisper",
+        status="available",
+        details="module",
+        recommendation=None,
+    )
+    monkeypatch.setattr(self_debug, "diagnose_markitdown", lambda: markitdown_result)
+    monkeypatch.setattr(self_debug, "diagnose_whisper", lambda: whisper_result)
 
     exit_code = self_debug.main([])
 

@@ -6,8 +6,11 @@ import json
 import shutil
 import sys
 from dataclasses import dataclass
+from importlib import import_module
 from pathlib import Path
 from typing import Callable, Iterable, Sequence
+
+import transcribe
 
 
 class DiagnosticError(RuntimeError):
@@ -125,6 +128,29 @@ def diagnose_markitdown(
     )
 
 
+def diagnose_whisper(
+    *, importer: Callable[[str], object] | None = None
+) -> DiagnosticResult:
+    """Report whether the OpenAI Whisper dependency can be imported."""
+
+    load_module = importer or import_module
+    try:
+        load_module("whisper")
+    except ModuleNotFoundError as exc:
+        return DiagnosticResult(
+            name="whisper",
+            status="unavailable",
+            details=f"Import failed: {exc}",
+            recommendation=transcribe.MISSING_WHISPER_MESSAGE,
+        )
+
+    return DiagnosticResult(
+        name="whisper",
+        status="available",
+        details="Module 'whisper' successfully imported.",
+    )
+
+
 def render_results(results: Sequence[DiagnosticResult]) -> str:
     """Return a human-readable summary of diagnostic *results*."""
 
@@ -152,13 +178,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return 2
 
-    result = diagnose_markitdown()
+    results = [diagnose_markitdown(), diagnose_whisper()]
     if as_json:
-        print(json.dumps([result.to_dict()], indent=2))
+        print(json.dumps([result.to_dict() for result in results], indent=2))
     else:
-        print(render_results([result]))
+        print(render_results(results))
 
-    return 0 if result.status == "available" else 1
+    return 0 if all(result.status == "available" for result in results) else 1
 
 
 if __name__ == "__main__":  # pragma: no cover - CLI execution
