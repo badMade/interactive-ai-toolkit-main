@@ -85,6 +85,8 @@ python -m pip install -r requirements.txt
 ```
 
 > **Note:** When the CLI reports `OpenAI Whisper is not installed. Install it with 'pip install openai-whisper' or run setup_env.py to configure the environment.`, run `pip install openai-whisper` in your active environment to install the missing dependency.
+>
+> **Why we pin NumPy < 2.0:** Several binary wheels (including the official PyTorch builds for macOS and Linux) are compiled against NumPy 1.x. Installing NumPy 2.x alongside those wheels triggers import errors such as `A module that was compiled using NumPy 1.x cannot be run in NumPy 2.3.3`. The `requirements.txt` file now constrains NumPy to the latest 1.26.x releases to keep the toolchain stable across platforms. If you are upgrading dependencies manually, ensure NumPy stays below 2.0 until the prebuilt wheels advertise compatibility.
 
 ### 3. Install FFmpeg
 
