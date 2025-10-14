@@ -9,7 +9,7 @@ Purpose of the Program
 
 Prerequisites
 -------------
-- Python 3.10 or newer (use virtual environments to isolate dependencies).
+- Python 3.12 (minimum) with virtual environments to isolate dependencies.
 - FFmpeg installed and available on PATH so Whisper can decode audio
   (verify with ``ffmpeg -version``).
 - Internet access the first time Whisper and SpeechT5 model weights
@@ -22,7 +22,7 @@ Installation Instructions
 1. Create and activate a Python virtual environment.
    - Windows (PowerShell): ``py -3.12 -m venv .venv`` then
      ``.\.venv\Scripts\Activate``
-   - macOS/Linux (bash or zsh): ``python3 -m venv .venv`` then
+   - macOS/Linux (bash or zsh): ``python3.12 -m venv .venv`` then
      ``source .venv/bin/activate``
 2. Upgrade pip: ``python -m pip install --upgrade pip``
 3. Install dependencies: ``python -m pip install -r requirements.txt``
@@ -55,7 +55,7 @@ Hands-on Walkthrough
 1. Create and activate a virtual environment.
    - Windows (PowerShell): ``py -3.12 -m venv .venv`` then
      ``.\.venv\Scripts\Activate``
-   - macOS/Linux (bash or zsh): ``python3 -m venv .venv`` then
+   - macOS/Linux (bash or zsh): ``python3.12 -m venv .venv`` then
      ``source .venv/bin/activate``
 2. Upgrade packaging tooling and install dependencies:
    ``python -m pip install --upgrade pip`` followed by
@@ -90,7 +90,7 @@ Optional API Integration
 
 Quick Setup Cheatsheet
 ----------------------
-- ``python -m venv .venv`` → activate it for your platform.
+- ``python3.12 -m venv .venv`` → activate it for your platform.
 - ``python -m pip install --upgrade pip``
 - ``python -m pip install -r requirements.txt``
 - Ensure ``ffmpeg -version`` succeeds, then run ``python transcribe.py`` or
