@@ -73,7 +73,7 @@ class FakeRunner:
 def _requirements_file(tmp_path: Path) -> Path:
     """Create a temporary requirements.txt file for testing."""
     path = tmp_path / "requirements.txt"
-    path.write_text("numpy<2.0\n")
+    path.write_text("numpy<2\n")
     return path
 
 
@@ -260,7 +260,10 @@ def test_ensure_ffmpeg_available_script_failure(monkeypatch) -> None:
 def test_verify_installation_success(tmp_path: Path) -> None:
     """Test that verify_installation succeeds with all packages installed."""
     packages = setup_env.DEFAULT_VALIDATION_PACKAGES
-    package_responses = [(f"{name} 1.0.0", "") for name in packages]
+    package_responses = [
+        ("1.26.4", "") if name == "numpy" else (f"{name} 1.0.0", "")
+        for name in packages
+    ]
     runner = FakeRunner(
         responses=[
             ("Python 3.11.0", ""),
@@ -274,6 +277,27 @@ def test_verify_installation_success(tmp_path: Path) -> None:
         runner=runner,
     )
     assert len(runner.calls) == 2 + len(packages)
+
+
+def test_verify_installation_rejects_numpy_two(tmp_path: Path) -> None:
+    """Setup should fail fast when NumPy 2.x is detected."""
+
+    runner = FakeRunner(
+        responses=[
+            ("Python 3.11.0", ""),
+            ("pip 23.0", ""),
+            ("2.0.0", ""),
+        ]
+    )
+
+    with pytest.raises(setup_env.SetupError) as error:
+        setup_env.verify_installation(
+            tmp_path / ".venv/bin/python",
+            packages=("numpy",),
+            runner=runner,
+        )
+
+    assert "numpy<2" in str(error.value)
 
 
 def test_verify_installation_failure(tmp_path: Path) -> None:
@@ -329,7 +353,12 @@ def test_main_writes_rotating_log_with_packages(monkeypatch, tmp_path: Path) -> 
         [
             "Python 3.11.0",
             "pip 23.0",
-            *(f"{name}-version" for name in setup_env.DEFAULT_VALIDATION_PACKAGES),
+            *(
+                "1.26.4"
+                if name == "numpy"
+                else f"{name}-version"
+                for name in setup_env.DEFAULT_VALIDATION_PACKAGES
+            ),
         ]
     )
 

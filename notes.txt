@@ -25,13 +25,14 @@ Installation Instructions
    - macOS/Linux (bash or zsh): ``python3 -m venv .venv`` then
      ``source .venv/bin/activate``
 2. Upgrade pip: ``python -m pip install --upgrade pip``
-3. Install dependencies: ``python -m pip install -r requirements.txt``
-4. Install FFmpeg (required for Whisper audio decoding).
+3. Install the compatible NumPy build: ``python -m pip install "numpy<2"``
+4. Install dependencies: ``python -m pip install -r requirements.txt``
+5. Install FFmpeg (required for Whisper audio decoding).
    - Windows: download from https://www.gyan.dev/ffmpeg/builds/ and add
      ``ffmpeg.exe`` to PATH or copy it beside ``transcribe.py``
    - macOS: ``brew install ffmpeg``
    - Linux: ``sudo apt install ffmpeg``
-5. (Optional) Install the OpenAI Python client:
+6. (Optional) Install the OpenAI Python client:
     ``python -m pip install openai``
 
 Why Some Files Are Not Tracked
@@ -58,7 +59,8 @@ Hands-on Walkthrough
    - macOS/Linux (bash or zsh): ``python3 -m venv .venv`` then
      ``source .venv/bin/activate``
 2. Upgrade packaging tooling and install dependencies:
-   ``python -m pip install --upgrade pip`` followed by
+   ``python -m pip install --upgrade pip``
+   ``python -m pip install "numpy<2"``
    ``python -m pip install -r requirements.txt``.
 3. Install FFmpeg (Windows builds from Gyan.dev, ``brew install ffmpeg`` on
    macOS, or ``sudo apt install ffmpeg`` on Debian/Ubuntu) and confirm the
@@ -92,6 +94,7 @@ Quick Setup Cheatsheet
 ----------------------
 - ``python -m venv .venv`` → activate it for your platform.
 - ``python -m pip install --upgrade pip``
+- ``python -m pip install "numpy<2"``
 - ``python -m pip install -r requirements.txt``
 - Ensure ``ffmpeg -version`` succeeds, then run ``python transcribe.py`` or
   ``python tts.py`` as needed.
@@ -103,6 +106,8 @@ Troubleshooting Tips
 - ``ImportError`` for ``sentencepiece`` or ``soundfile`` when running
   ``tts.py``: reinstall dependencies via
   ``python -m pip install -r requirements.txt``.
+- NumPy 2.x accidentally installed: reinstall the compatible release with
+  ``python -m pip install "numpy<2"`` before running the toolkit again.
 - PyTorch installation issues on Windows: install the CPU wheel
   ``python -m pip install torch
   --index-url https://download.pytorch.org/whl/cpu``.

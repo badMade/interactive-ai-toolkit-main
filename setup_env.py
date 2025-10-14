@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -67,6 +68,9 @@ def _read_pyvenv_version(venv_path: Path) -> tuple[int, int] | None:
     except (OSError, ValueError):
         return None
     return None
+
+
+NUMPY_PINNED_SPEC = "numpy<2"
 
 
 DEFAULT_VALIDATION_PACKAGES: tuple[str, ...] = (
@@ -420,6 +424,8 @@ def verify_installation(
                     guidance = f"{guidance}\nOriginal error: {details}"
                 raise SetupError(guidance) from exc
             raise
+        if package.lower() == "numpy":
+            _ensure_supported_numpy(version)
         logging.info("Verified %s %s", package, version or "installed")
         installed_packages[package] = version or "installed"
 
@@ -433,6 +439,30 @@ def verify_installation(
     )
 
     return installed_packages
+
+
+def _ensure_supported_numpy(version: str) -> None:
+    """Validate that the NumPy version satisfies the project's constraints."""
+
+    normalized = version.strip()
+    if not normalized:
+        raise SetupError(
+            "Unable to determine the installed NumPy version. "
+            "Reinstall NumPy with `python -m pip install \"numpy<2\"` and retry."
+        )
+    match = re.match(r"(\d+)\.(\d+)", normalized)
+    if not match:
+        raise SetupError(
+            "Could not parse the NumPy version string "
+            f"'{version}'. Reinstall NumPy with `python -m pip install \"numpy<2\"`."
+        )
+    major = int(match.group(1))
+    if major >= 2:
+        raise SetupError(
+            "Detected NumPy version "
+            f"{normalized}. The toolkit requires {NUMPY_PINNED_SPEC} for compatibility. "
+            "Run `python -m pip install \"numpy<2\"` inside the virtual environment."
+        )
 
 
 def write_setup_log(

@@ -13,6 +13,8 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_VENV_PATH = PROJECT_ROOT / ".venv"
 DEFAULT_REQUIREMENTS_FILE = PROJECT_ROOT / "requirements.txt"
 
+NUMPY_PINNED_SPEC = "numpy<2"
+
 REQUIRED_PYTHON_VERSION = (3, 12)
 
 
@@ -231,6 +233,28 @@ def collect_requirements(requirements_path: Path) -> list[str]:
     return requirements
 
 
+def ensure_numpy_requirement(requirements: Sequence[str]) -> None:
+    """Ensure that *requirements* pins NumPy below major version two."""
+
+    normalized_requirements = [
+        requirement.lower().replace(" ", "") for requirement in requirements
+    ]
+    numpy_entries = [
+        requirement for requirement in normalized_requirements if requirement.startswith("numpy")
+    ]
+    if not numpy_entries:
+        raise EnvironmentProvisioningError(
+            "The requirements file must include the dependency "
+            f"'{NUMPY_PINNED_SPEC}' to keep compatibility with PyTorch and Whisper."
+        )
+    for requirement in numpy_entries:
+        if "<2" not in requirement:
+            raise EnvironmentProvisioningError(
+                "The NumPy dependency must be pinned below version 2.0. "
+                "Update requirements.txt to include 'numpy<2' and rerun the setup."
+            )
+
+
 _CHECK_REQUIREMENT_CODE = """
 import sys
 try:
@@ -389,6 +413,7 @@ def synchronize_environment(
     venv_python = get_virtualenv_python_path(venv_path)
     ensure_setuptools(venv_python, venv_path=venv_path, runner=runner)
     requirements = collect_requirements(requirements_path)
+    ensure_numpy_requirement(requirements)
     if not requirements:
         return []
     missing_before = missing_requirements(

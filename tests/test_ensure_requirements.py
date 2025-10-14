@@ -50,6 +50,16 @@ def test_collect_requirements_ignores_comments(tmp_path: Path) -> None:
     assert result == ["package-one", "package-two==1.0"]
 
 
+def test_ensure_numpy_requirement_requires_pin() -> None:
+    with pytest.raises(ensure.EnvironmentProvisioningError):
+        ensure.ensure_numpy_requirement(["numpy"])
+
+
+def test_ensure_numpy_requirement_requires_numpy_entry() -> None:
+    with pytest.raises(ensure.EnvironmentProvisioningError):
+        ensure.ensure_numpy_requirement(["torch"])
+
+
 def test_missing_requirements_identifies_unsatisfied(tmp_path: Path) -> None:
     venv_python = tmp_path / "python"
     runner = StubRunner([(1, "", ""), (0, "", "")])
@@ -67,7 +77,7 @@ def test_missing_requirements_identifies_unsatisfied(tmp_path: Path) -> None:
 def test_synchronize_environment_installs_and_verifies(tmp_path: Path) -> None:
     project_root = tmp_path
     requirements_path = project_root / "requirements.txt"
-    requirements_path.write_text("alpha\nbeta\n")
+    requirements_path.write_text("numpy<2\nalpha\nbeta\n")
 
     venv_path = project_root / ".venv"
     python_dir = venv_path / "bin"
@@ -82,9 +92,11 @@ def test_synchronize_environment_installs_and_verifies(tmp_path: Path) -> None:
             (1, "", ""),  # pkg_resources missing
             (0, "", ""),  # install setuptools
             (0, "", ""),  # pkg_resources available
+            (0, "", ""),  # numpy already satisfies pin
             (1, "", ""),  # alpha missing
             (1, "", ""),  # beta missing
             (0, "", ""),  # pip install requirements
+            (0, "", ""),  # numpy satisfied after install
             (0, "", ""),  # alpha satisfied after install
             (0, "", ""),  # beta satisfied after install
         ]
@@ -97,7 +109,13 @@ def test_synchronize_environment_installs_and_verifies(tmp_path: Path) -> None:
     )
 
     assert missing == ["alpha", "beta"]
-    pip_command = runner.commands[5]["command"]
+    pip_command = next(
+        info["command"]
+        for info in runner.commands
+        if info["command"][:4]
+        == [str(python_dir / "python"), "-m", "pip", "install"]
+        and "-r" in info["command"]
+    )
     assert pip_command[:4] == [
         str(python_dir / "python"),
         "-m",
@@ -105,7 +123,13 @@ def test_synchronize_environment_installs_and_verifies(tmp_path: Path) -> None:
         "install",
     ]
 
-    setuptools_command = runner.commands[1]["command"]
+    setuptools_command = next(
+        info["command"]
+        for info in runner.commands
+        if info["command"][:4]
+        == [str(python_dir / "python"), "-m", "pip", "install"]
+        and "setuptools" in info["command"]
+    )
     assert setuptools_command[:4] == [
         str(python_dir / "python"),
         "-m",
@@ -117,7 +141,7 @@ def test_synchronize_environment_installs_and_verifies(tmp_path: Path) -> None:
 def test_synchronize_environment_skips_install_when_satisfied(tmp_path: Path) -> None:
     project_root = tmp_path
     requirements_path = project_root / "requirements.txt"
-    requirements_path.write_text("alpha\nbeta\n")
+    requirements_path.write_text("numpy<2\nalpha\nbeta\n")
 
     venv_path = project_root / ".venv"
     python_dir = venv_path / "bin"
@@ -127,7 +151,7 @@ def test_synchronize_environment_skips_install_when_satisfied(tmp_path: Path) ->
     )
     (python_dir / "python").write_text("#!/usr/bin/env python3\n")
 
-    runner = StubRunner([(0, "", ""), (0, "", ""), (0, "", "")])
+    runner = StubRunner([(0, "", ""), (0, "", ""), (0, "", ""), (0, "", "")])
 
     missing = ensure.synchronize_environment(
         requirements_path=requirements_path,
@@ -136,7 +160,7 @@ def test_synchronize_environment_skips_install_when_satisfied(tmp_path: Path) ->
     )
 
     assert missing == []
-    assert len(runner.commands) == 3
+    assert len(runner.commands) == 4
 
 
 def test_ensure_setuptools_installs_when_missing(tmp_path: Path) -> None:

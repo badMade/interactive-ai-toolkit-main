@@ -81,11 +81,45 @@ def test_diagnose_whisper_unavailable() -> None:
     assert self_debug.transcribe.MISSING_WHISPER_MESSAGE == result.recommendation
 
 
+def test_diagnose_numpy_available() -> None:
+    module = type("NumPy", (), {"__version__": "1.26.4"})()
+
+    result = self_debug.diagnose_numpy(importer=lambda _: module)
+
+    assert result.status == "available"
+    assert "1.26.4" in result.details
+
+
+def test_diagnose_numpy_rejects_major_two() -> None:
+    module = type("NumPy", (), {"__version__": "2.0.0"})()
+
+    result = self_debug.diagnose_numpy(importer=lambda _: module)
+
+    assert result.status == "unavailable"
+    assert "numpy<2" in (result.recommendation or "")
+
+
+def test_diagnose_numpy_missing() -> None:
+    def _importer(_: str) -> None:
+        raise ModuleNotFoundError("numpy")
+
+    result = self_debug.diagnose_numpy(importer=_importer)
+
+    assert result.status == "unavailable"
+    assert "numpy<2" in (result.recommendation or "")
+
+
 def test_main_respects_json_flag(monkeypatch, capsys) -> None:
     markitdown_result = self_debug.DiagnosticResult(
         name="markitdown",
         status="available",
         details="uvx markitdown",
+        recommendation=None,
+    )
+    numpy_result = self_debug.DiagnosticResult(
+        name="numpy",
+        status="available",
+        details="1.26.4",
         recommendation=None,
     )
     whisper_result = self_debug.DiagnosticResult(
@@ -94,6 +128,7 @@ def test_main_respects_json_flag(monkeypatch, capsys) -> None:
         details="module",
         recommendation=None,
     )
+    monkeypatch.setattr(self_debug, "diagnose_numpy", lambda: numpy_result)
     monkeypatch.setattr(self_debug, "diagnose_markitdown", lambda: markitdown_result)
     monkeypatch.setattr(self_debug, "diagnose_whisper", lambda: whisper_result)
 
@@ -102,6 +137,7 @@ def test_main_respects_json_flag(monkeypatch, capsys) -> None:
     assert exit_code == 0
     output = capsys.readouterr().out
     assert "markitdown" in output
+    assert "numpy" in output
     assert "whisper" in output
     assert output.strip().startswith("[")
 
@@ -113,12 +149,19 @@ def test_main_handles_error_status(monkeypatch, capsys) -> None:
         details="missing command",
         recommendation="install uv",
     )
+    numpy_result = self_debug.DiagnosticResult(
+        name="numpy",
+        status="available",
+        details="1.26.4",
+        recommendation=None,
+    )
     whisper_result = self_debug.DiagnosticResult(
         name="whisper",
         status="available",
         details="module",
         recommendation=None,
     )
+    monkeypatch.setattr(self_debug, "diagnose_numpy", lambda: numpy_result)
     monkeypatch.setattr(self_debug, "diagnose_markitdown", lambda: markitdown_result)
     monkeypatch.setattr(self_debug, "diagnose_whisper", lambda: whisper_result)
 
