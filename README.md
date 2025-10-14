@@ -103,11 +103,13 @@ individual package constraints manually.
 - **macOS**: `brew install ffmpeg`
 - **Linux (Debian/Ubuntu)**: `sudo apt install ffmpeg`
 
-Verify the installation with:
+Whisper depends on FFmpeg for audio preprocessing. When a native package or
+system installer is unavailable, install the cross-platform fallback with
+`python -m pip install "imageio[ffmpeg]"` to vendor a portable binary that
+Whisper can use.
 
-```bash
-ffmpeg -version
-```
+After installation, run `ffmpeg -version` to confirm the command is available on
+your `PATH`.
 
 ### 4. (Optional) Install the OpenAI Python client
 
@@ -149,8 +151,9 @@ downloads secure while resolving proxy errors.
    ```
 
 3. Install FFmpeg (download a Windows build from Gyan.dev, run `brew install
-   ffmpeg` on macOS, or `sudo apt install ffmpeg` on Debian/Ubuntu) and confirm
-   it is available via `ffmpeg -version`.
+   ffmpeg` on macOS, or `sudo apt install ffmpeg` on Debian/Ubuntu). After
+   installation, run `ffmpeg -version` to confirm the command is available on
+   your `PATH`.
 4. Copy or record an audio sample (for example `lesson_recording.mp3`) into the
    project root.
 5. Run offline transcription:
@@ -269,7 +272,8 @@ results than local hardware can provide.
 - `python -m pip install --upgrade pip`
 - `python -m pip install "numpy<2"`
 - `python -m pip install -r requirements.txt`
-- Confirm `ffmpeg -version` works, then run `python transcribe.py` or `python tts.py`.
+- After installing FFmpeg, run `ffmpeg -version` to confirm the command is on
+  your `PATH`, then run `python transcribe.py` or `python tts.py`.
 
 
 ## Development Guidelines
@@ -289,7 +293,7 @@ results than local hardware can provide.
 | --- | --- | --- |
 | `FileNotFoundError: Audio file not found` | Incorrect path supplied to `transcribe.py` | Provide the full audio path or copy the file into the repository root. |
 | CLI exits with `OpenAI Whisper is not installed. Install it with 'pip install openai-whisper' or run setup_env.py to configure the environment.` | Whisper dependency missing from the environment | Install Whisper with `pip install openai-whisper` or run `python setup_env.py` to prepare the virtual environment. |
-| `ffmpeg` errors | FFmpeg missing from `PATH` | Install FFmpeg and confirm `ffmpeg -version` works from the terminal. |
+| `ffmpeg` errors | FFmpeg missing from `PATH` | Install FFmpeg and run `ffmpeg -version` to confirm the command is available on your `PATH`. |
 | `ImportError: sentencepiece` or `soundfile` | Dependencies missing | Re-run `python -m pip install -r requirements.txt`. |
 | Runtime errors mentioning NumPy 2.x wheels | Incompatible NumPy major release | Reinstall the compatible build with `python -m pip install "numpy<2"`. |
 | PyTorch install fails on Windows | Default wheels conflict with CPU-only setups | Install the CPU build: `python -m pip install torch --index-url https://download.pytorch.org/whl/cpu`. |

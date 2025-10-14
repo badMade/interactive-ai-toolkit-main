@@ -11,7 +11,7 @@ Prerequisites
 -------------
 - Python 3.12 (the pinned dependency set in ``requirements.txt`` is validated
   against this interpreter).
-- FFmpeg installed and available on PATH so Whisper can decode audio
+- FFmpeg installed and available on PATH so Whisper can preprocess audio
   (verify with ``ffmpeg -version``).
 - Internet access the first time Whisper and SpeechT5 model weights
   download from PyPI and Hugging Face.
@@ -27,11 +27,13 @@ Installation Instructions
      ``source .venv/bin/activate``
 2. Upgrade pip: ``python -m pip install --upgrade pip``
 3. Install the pinned dependencies: ``python -m pip install -r requirements.txt``
-4. Install FFmpeg (required for Whisper audio decoding).
+4. Install FFmpeg (required for Whisper audio preprocessing).
    - Windows: download from https://www.gyan.dev/ffmpeg/builds/ and add
      ``ffmpeg.exe`` to PATH or copy it beside ``transcribe.py``
    - macOS: ``brew install ffmpeg``
    - Linux: ``sudo apt install ffmpeg``
+   - Fallback: ``python -m pip install "imageio[ffmpeg]"`` to vendor a
+     cross-platform binary when system packages are unavailable.
 5. (Optional) Install the OpenAI Python client:
     ``python -m pip install openai``
 
@@ -66,8 +68,8 @@ Hands-on Walkthrough
    ``python -m pip install --upgrade pip``
    ``python -m pip install -r requirements.txt``.
 3. Install FFmpeg (Windows builds from Gyan.dev, ``brew install ffmpeg`` on
-   macOS, or ``sudo apt install ffmpeg`` on Debian/Ubuntu) and confirm the
-   command works with ``ffmpeg -version``.
+   macOS, or ``sudo apt install ffmpeg`` on Debian/Ubuntu). After installation,
+   run ``ffmpeg -version`` to confirm the command is available on PATH.
 4. Copy or record an audio sample (for example ``lesson_recording.mp3``)
    into the project root.
 5. Run offline transcription: ``python transcribe.py [audio_path]
@@ -98,8 +100,8 @@ Quick Setup Cheatsheet
 - ``python -m venv .venv`` → activate it for your platform.
 - ``python -m pip install --upgrade pip``
 - ``python -m pip install -r requirements.txt``
-- Ensure ``ffmpeg -version`` succeeds, then run ``python transcribe.py`` or
-  ``python tts.py`` as needed.
+- After installing FFmpeg, run ``ffmpeg -version`` to confirm the command is on
+  PATH, then run ``python transcribe.py`` or ``python tts.py`` as needed.
 
 Troubleshooting Tips
 --------------------
