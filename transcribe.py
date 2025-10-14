@@ -7,6 +7,7 @@ on the command line.
 """
 import sys
 from argparse import ArgumentParser, Namespace
+from functools import lru_cache
 from importlib import import_module
 from pathlib import Path
 from types import ModuleType
@@ -20,26 +21,18 @@ MISSING_WHISPER_MESSAGE = (
 )
 
 
-whisper: ModuleType | None = None
-_cached_whisper: ModuleType | None = None
+@lru_cache(maxsize=1)
+def _import_whisper() -> ModuleType:
+    try:
+        return import_module("whisper")
+    except ModuleNotFoundError as exc:
+        raise ModuleNotFoundError(MISSING_WHISPER_MESSAGE) from exc
 
 
 def load_whisper_module() -> ModuleType:
     """Import the Whisper module with a helpful error if it is unavailable."""
+    return _import_whisper()
 
-    global whisper, _cached_whisper
-
-    if _cached_whisper is not None:
-        return _cached_whisper
-
-    try:
-        module = import_module("whisper")
-    except ModuleNotFoundError as exc:
-        raise ModuleNotFoundError(MISSING_WHISPER_MESSAGE) from exc
-
-    whisper = module
-    _cached_whisper = module
-    return module
 
 DEFAULT_AUDIO = "lesson_recording.mp3"
 DEFAULT_MODEL = "base"
@@ -106,22 +99,27 @@ def transcribe_audio(audio_path: Path,
         Dict[str, Any]: Full transcription result emitted by Whisper, including
         ``text`` and segment metadata.
     """
-    module = whisper if whisper is not None else load_whisper_module()
+    module = load_whisper_module()
     model = module.load_model(model_name)
-    return model.transcribe(str(audio_path), fp16=use_fp16)
+    transcription_kwargs: Dict[str, Any] = {}
+    if not use_fp16:
+        transcription_kwargs["fp16"] = False
+    result: Dict[str, Any] = model.transcribe(
+        str(audio_path),
+        **transcription_kwargs,
+    )
+    return result
 
 
 def _missing_whisper_message(exc: ModuleNotFoundError) -> str | None:
     """Return a helpful message when Whisper is not installed."""
-
-    message = str(exc).strip()
     current: BaseException | None = exc
     while current is not None:
-        is_missing_whisper = isinstance(current, ModuleNotFoundError) and getattr(
-            current, "name", None
-        ) == "whisper"
-        if is_missing_whisper:
-            return message or MISSING_WHISPER_MESSAGE
+        if (
+            isinstance(current, ModuleNotFoundError)
+            and getattr(current, "name", None) == "whisper"
+        ):
+            return MISSING_WHISPER_MESSAGE
         current = current.__cause__
     return None
 
