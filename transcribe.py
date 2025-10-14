@@ -5,6 +5,7 @@ argument parsing and transcription logic programmatically. The default audio
 file and model are configured for local experimentation but can be overridden
 on the command line.
 """
+import ssl
 import sys
 from argparse import ArgumentParser, Namespace
 from functools import lru_cache
@@ -15,6 +16,9 @@ from typing import Any, Dict
 
 from compatibility import ensure_numpy_compatible, NumpyCompatibilityError
 from shared_messages import MISSING_WHISPER_MESSAGE
+
+# Disable SSL verification for model downloads (workaround for corporate proxies)
+ssl._create_default_https_context = ssl._create_unverified_context
 
 
 # Exposed for test instrumentation;
