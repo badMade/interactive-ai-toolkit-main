@@ -61,6 +61,35 @@ def locate_executable(
     return None
 
 
+def diagnose_python_version(
+    *, expected: tuple[int, int] = (3, 12), info: tuple[int, int, int] | None = None
+) -> DiagnosticResult:
+    """Describe whether the active interpreter matches the required version."""
+
+    current_info = info or sys.version_info[:3]
+    current_major, current_minor, current_micro = current_info
+    expected_major, expected_minor = expected
+    version_text = f"{current_major}.{current_minor}.{current_micro}"
+    if (current_major, current_minor) == expected:
+        return DiagnosticResult(
+            name="python",
+            status="available",
+            details=f"Interpreter version {version_text} matches Python {expected_major}.{expected_minor}.",
+        )
+    recommendation = (
+        "Activate the project's Python 3.12 virtual environment before running diagnostics."
+    )
+    return DiagnosticResult(
+        name="python",
+        status="unavailable",
+        details=(
+            "Interpreter version "
+            f"{version_text} detected; Python {expected_major}.{expected_minor} is required for the toolkit."
+        ),
+        recommendation=recommendation,
+    )
+
+
 def determine_markitdown_launcher(
     *,
     which: ExecutableLocator | None = None,
@@ -178,7 +207,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return 2
 
-    results = [diagnose_markitdown(), diagnose_whisper()]
+    results = [
+        diagnose_python_version(),
+        diagnose_markitdown(),
+        diagnose_whisper(),
+    ]
     if as_json:
         print(json.dumps([result.to_dict() for result in results], indent=2))
     else:

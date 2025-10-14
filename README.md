@@ -33,7 +33,7 @@ without depending on proprietary cloud services.
 
 ## Prerequisites
 
-- Python **3.10 or newer**.
+- Python **3.12**.
 - [FFmpeg](https://ffmpeg.org/) for audio decoding when running Whisper.
 - Internet access the first time you download the Whisper and SpeechT5 model
   weights from PyPI and Hugging Face.
@@ -69,8 +69,10 @@ py -3.12 -m venv .venv
 <summary>macOS / Linux (bash or zsh)</summary>
 
 ```bash
-python3 -m venv .venv
+python3.12 -m venv .venv
 source .venv/bin/activate
+# Confirm the interpreter is the expected release
+python3.12 --version
 ```
 
 </details>
@@ -236,7 +238,7 @@ results than local hardware can provide.
 
 ## Quick Setup Cheatsheet
 
-- `python -m venv .venv` and activate it for your platform.
+- `python3.12 -m venv .venv` and activate it for your platform.
 - `python -m pip install --upgrade pip`
 - `python -m pip install -r requirements.txt`
 - Confirm `ffmpeg -version` works, then run `python transcribe.py` or `python tts.py`.

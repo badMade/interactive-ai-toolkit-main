@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import shutil
 import subprocess
 import sys
 from datetime import datetime
@@ -36,12 +37,36 @@ class SetupError(RuntimeError):
     """Raised when the environment setup cannot be completed."""
 
 
-MINIMUM_SUPPORTED_PYTHON = (3, 10)
+REQUIRED_PYTHON_VERSION = (3, 12)
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 DEFAULT_LOG_PATH = PROJECT_ROOT / "logs" / "setup_env.log"
 LOG_PATH_ENV_VAR = "SETUP_ENV_LOG_PATH"
+
+_PYTHON_VERSION_DETECTION_CODE = (
+    "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"
+)
+
+
+def _read_pyvenv_version(venv_path: Path) -> tuple[int, int] | None:
+    """Return the Python version recorded in ``pyvenv.cfg`` if available."""
+
+    config_path = venv_path / "pyvenv.cfg"
+    if not config_path.exists():
+        return None
+    try:
+        for line in config_path.read_text(encoding="utf-8").splitlines():
+            if line.lower().startswith("version"):
+                _, _, value = line.partition("=")
+                cleaned = value.strip()
+                parts = cleaned.split(".")
+                if len(parts) < 2:
+                    return None
+                return int(parts[0]), int(parts[1])
+    except (OSError, ValueError):
+        return None
+    return None
 
 
 DEFAULT_VALIDATION_PACKAGES: tuple[str, ...] = (
@@ -59,12 +84,12 @@ def ensure_supported_python() -> None:
     """Fail fast when running on an unsupported Python interpreter."""
 
     current = sys.version_info
-    required_major, required_minor = MINIMUM_SUPPORTED_PYTHON
+    required_major, required_minor = REQUIRED_PYTHON_VERSION
     if (current.major, current.minor) < (required_major, required_minor):
         raise SetupError(
-            "Python 3.10 or newer is required. "
+            "Python 3.12 or newer is required. "
             f"Detected {current.major}.{current.minor}.{current.micro}. "
-            "Please install or launch Python 3 before continuing."
+            "Please install Python 3.12 and re-run the setup."
         )
 
 
@@ -165,6 +190,71 @@ def run_command(
     return ""
 
 
+def _python_command_matches_requirement(
+    command: Iterable[str], *, runner: CommandRunner | None = None
+) -> bool:
+    """Return ``True`` when *command* launches Python 3.12."""
+
+    try:
+        version = run_command(
+            [*command, "-c", _PYTHON_VERSION_DETECTION_CODE],
+            capture_output=True,
+            runner=runner,
+        )
+    except SetupError:
+        return False
+    return version.strip() == f"{REQUIRED_PYTHON_VERSION[0]}.{REQUIRED_PYTHON_VERSION[1]}"
+
+
+def resolve_python_command(
+    *, runner: CommandRunner | None = None
+) -> tuple[str, ...]:
+    """Return a command that launches the required Python interpreter."""
+
+    if (sys.version_info.major, sys.version_info.minor) == REQUIRED_PYTHON_VERSION:
+        return (sys.executable,)
+
+    candidates: list[tuple[str, ...]] = []
+    if os.name == "nt":
+        candidates.append(
+            ("py", f"-{REQUIRED_PYTHON_VERSION[0]}.{REQUIRED_PYTHON_VERSION[1]}")
+        )
+    candidates.extend((("python3.12",), ("python3",), ("python",)))
+
+    for command in candidates:
+        if _python_command_matches_requirement(command, runner=runner):
+            return command
+
+    raise SetupError(
+        "Python 3.12 is required but could not be located. "
+        "Install Python 3.12 and ensure it is on PATH."
+    )
+
+
+def _virtualenv_uses_required_python(
+    venv_path: Path, *, runner: CommandRunner | None = None
+) -> bool:
+    """Return ``True`` when the virtual environment already targets Python 3.12."""
+
+    recorded_version = _read_pyvenv_version(venv_path)
+    if recorded_version == REQUIRED_PYTHON_VERSION:
+        return True
+    if recorded_version and recorded_version != REQUIRED_PYTHON_VERSION:
+        return False
+    venv_python = get_venv_python_path(venv_path)
+    if not venv_python.exists():
+        return False
+    try:
+        version = run_command(
+            [str(venv_python), "-c", _PYTHON_VERSION_DETECTION_CODE],
+            capture_output=True,
+            runner=runner,
+        )
+    except SetupError:
+        return False
+    return version.strip() == f"{REQUIRED_PYTHON_VERSION[0]}.{REQUIRED_PYTHON_VERSION[1]}"
+
+
 def ensure_ffmpeg_available(*, runner: CommandRunner | None = None) -> None:
     """Verify that FFmpeg is available on the host system."""
 
@@ -230,12 +320,25 @@ def create_virtualenv(
     runner: CommandRunner | None = None,
 ) -> None:
     """Create a virtual environment unless one already exists."""
+    python_command = resolve_python_command(runner=runner)
     pyvenv_cfg = venv_path / "pyvenv.cfg"
     if pyvenv_cfg.exists():
-        logging.info("Virtual environment already exists at %s", venv_path)
-        return
+        if _virtualenv_uses_required_python(venv_path, runner=runner):
+            logging.info(
+                "Virtual environment already exists at %s with Python %s.%s",
+                venv_path,
+                *REQUIRED_PYTHON_VERSION,
+            )
+            return
+        logging.info(
+            "Removing virtual environment at %s because it is not using Python %s.%s",
+            venv_path,
+            *REQUIRED_PYTHON_VERSION,
+        )
+        shutil.rmtree(venv_path)
     logging.info("Creating virtual environment at %s", venv_path)
-    run_command([sys.executable, "-m", "venv", str(venv_path)], runner=runner)
+    venv_path.parent.mkdir(parents=True, exist_ok=True)
+    run_command([*python_command, "-m", "venv", str(venv_path)], runner=runner)
 
 
 def get_venv_python_path(venv_path: Path) -> Path:

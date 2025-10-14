@@ -1,3 +1,4 @@
+# Requires Python 3.12
 openai-whisper
 transformers
 torch
