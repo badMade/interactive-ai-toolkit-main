@@ -26,6 +26,7 @@ Installation Instructions
      ``source .venv/bin/activate``
 2. Upgrade pip: ``python -m pip install --upgrade pip``
 3. Install dependencies: ``python -m pip install -r requirements.txt``
+   - Note: When the CLI reports ``OpenAI Whisper is not installed. Install it with 'pip install openai-whisper' or run setup_env.py to configure the environment.``, run ``pip install openai-whisper`` in the active environment to add the missing package.
 4. Install FFmpeg (required for Whisper audio decoding).
    - Windows: download from https://www.gyan.dev/ffmpeg/builds/ and add
      ``ffmpeg.exe`` to PATH or copy it beside ``transcribe.py``
@@ -98,6 +99,7 @@ Quick Setup Cheatsheet
 
 Troubleshooting Tips
 --------------------
+- ``OpenAI Whisper is not installed. Install it with 'pip install openai-whisper' or run setup_env.py to configure the environment.``: run ``pip install openai-whisper`` (inside your virtual environment) or execute ``python setup_env.py`` to install Whisper automatically.
 - Whisper ``FileNotFoundError`` or FFmpeg errors: ensure FFmpeg is
   installed and accessible via PATH; verify with ``ffmpeg -version``.
 - ``ImportError`` for ``sentencepiece`` or ``soundfile`` when running
