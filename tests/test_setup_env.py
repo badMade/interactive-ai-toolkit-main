@@ -39,8 +39,17 @@ class FakeRunner:
             self.responses = deque(responses or [("", "")] * 10)
         self.fail_on = fail_on
         self.calls: list[tuple[list[str], bool]] = []
+        self.environments: list[dict[str, str] | None] = []
 
-    def __call__(self, command, *, check, text, capture_output):
+    def __call__(
+        self,
+        command,
+        *,
+        check,
+        text,
+        capture_output,
+        env=None,
+    ):
         """Execute a fake subprocess command with configurable behavior."""
         if self.side_effects is not None:
             if not self.side_effects:
@@ -60,6 +69,7 @@ class FakeRunner:
         if self.fail_on is not None and len(self.calls) == self.fail_on:
             raise subprocess.CalledProcessError(returncode=1, cmd=command)
         self.calls.append((command, capture_output))
+        self.environments.append(env)
         stdout, stderr = self.responses.popleft()
         return subprocess.CompletedProcess(
             args=command,
@@ -170,15 +180,21 @@ def test_install_requirements_runs_expected_commands(
     setup_env.install_requirements(
         Path("/tmp/python"), requirements_file, runner=runner
     )
-    assert runner.calls[0][0][:4] == ["/tmp/python",
-                                      "-m",
-                                      "pip",
-                                      "install"]
-    assert runner.calls[1][0][:5] == ["/tmp/python",
-                                      "-m",
-                                      "pip",
-                                      "install",
-                                      "-r"]
+    upgrade_command, upgrade_capture = runner.calls[0]
+    assert upgrade_command[:4] == ["/tmp/python", "-m", "pip", "install"]
+    assert "--upgrade" in upgrade_command
+    assert "pip" in upgrade_command
+    reinstall_env = runner.environments[1]
+    assert runner.environments[0] is not None
+    assert runner.environments[0].get("PIP_REQUIRE_VIRTUALENV") == "1"
+    reinstall_command, reinstall_capture = runner.calls[1]
+    assert reinstall_command[:4] == ["/tmp/python", "-m", "pip", "install"]
+    assert "--upgrade" in reinstall_command
+    assert "--force-reinstall" in reinstall_command
+    assert "-r" in reinstall_command
+    assert reinstall_command[-1] == str(requirements_file)
+    assert reinstall_env is not None
+    assert reinstall_env.get("PIP_REQUIRE_VIRTUALENV") == "1"
 
 
 def test_ensure_ffmpeg_available_success() -> None:
@@ -362,7 +378,7 @@ def test_main_writes_rotating_log_with_packages(monkeypatch, tmp_path: Path) -> 
         ]
     )
 
-    def fake_run_command(command, *, capture_output=False, runner=None):
+    def fake_run_command(command, *, capture_output=False, env=None, runner=None):
         if capture_output:
             if not responses:
                 raise AssertionError("Unexpected command invocation")
@@ -373,6 +389,7 @@ def test_main_writes_rotating_log_with_packages(monkeypatch, tmp_path: Path) -> 
     monkeypatch.setattr(setup_env, "ensure_ffmpeg_available", lambda **_: None)
     monkeypatch.setattr(setup_env, "create_virtualenv", lambda *_, **__: None)
     monkeypatch.setattr(setup_env, "install_requirements", lambda *_, **__: None)
+    monkeypatch.setattr(setup_env, "read_required_packages", lambda *_: {})
     monkeypatch.setattr(setup_env, "write_setup_log", lambda *_, **__: None)
 
     exit_code = setup_env.main()

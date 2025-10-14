@@ -30,6 +30,7 @@ class CommandRunner(Protocol):
         check: bool,
         text: bool,
         capture_output: bool,
+        env: dict[str, str] | None = None,
     ) -> subprocess.CompletedProcess[str]:
         ...
 
@@ -159,6 +160,7 @@ def run_command(
     command: list[str],
     *,
     capture_output: bool = False,
+    env: dict[str, str] | None = None,
     runner: CommandRunner | None = None,
 ) -> str:
     """Execute *command* and return captured output when requested."""
@@ -169,6 +171,7 @@ def run_command(
             check=True,
             text=True,
             capture_output=capture_output,
+            env=env,
         )
     except FileNotFoundError as exc:
         missing = command[0] if command else "command"
@@ -356,21 +359,38 @@ def install_requirements(
     runner: CommandRunner | None = None,
 ) -> None:
     """Install project dependencies into the virtual environment."""
+    pip_env = os.environ.copy()
+    pip_env["PIP_REQUIRE_VIRTUALENV"] = "1"
+
     logging.info("Upgrading pip inside the virtual environment")
-    run_command([str(venv_python),
-                 "-m",
-                 "pip",
-                 "install",
-                 "--upgrade",
-                 "pip"], runner=runner)
-    logging.info("Installing dependencies from requirements.txt")
     run_command(
-        [str(venv_python),
-         "-m",
-         "pip",
-         "install",
-         "-r",
-         str(requirements_path)],
+        [
+            str(venv_python),
+            "-m",
+            "pip",
+            "install",
+            "--upgrade",
+            "pip",
+        ],
+        env=pip_env,
+        runner=runner,
+    )
+    logging.info(
+        "Reinstalling dependencies from %s (upgrade + force reinstall)",
+        requirements_path,
+    )
+    run_command(
+        [
+            str(venv_python),
+            "-m",
+            "pip",
+            "install",
+            "--upgrade",
+            "--force-reinstall",
+            "-r",
+            str(requirements_path),
+        ],
+        env=pip_env,
         runner=runner,
     )
 

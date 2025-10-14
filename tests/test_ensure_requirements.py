@@ -122,6 +122,15 @@ def test_synchronize_environment_installs_and_verifies(tmp_path: Path) -> None:
         "pip",
         "install",
     ]
+    assert "--upgrade" in pip_command
+    assert "--force-reinstall" in pip_command
+    pip_env = next(
+        info["env"]
+        for info in runner.commands
+        if info["command"] == pip_command
+    )
+    assert pip_env is not None
+    assert pip_env.get("PIP_REQUIRE_VIRTUALENV") == "1"
 
     setuptools_command = next(
         info["command"]
@@ -151,7 +160,18 @@ def test_synchronize_environment_skips_install_when_satisfied(tmp_path: Path) ->
     )
     (python_dir / "python").write_text("#!/usr/bin/env python3\n")
 
-    runner = StubRunner([(0, "", ""), (0, "", ""), (0, "", ""), (0, "", "")])
+    runner = StubRunner(
+        [
+            (0, "", ""),  # pkg_resources available
+            (0, "", ""),  # numpy satisfied before install
+            (0, "", ""),  # alpha satisfied before install
+            (0, "", ""),  # beta satisfied before install
+            (0, "", ""),  # pip reinstall command
+            (0, "", ""),  # numpy satisfied after install
+            (0, "", ""),  # alpha satisfied after install
+            (0, "", ""),  # beta satisfied after install
+        ]
+    )
 
     missing = ensure.synchronize_environment(
         requirements_path=requirements_path,
@@ -160,7 +180,12 @@ def test_synchronize_environment_skips_install_when_satisfied(tmp_path: Path) ->
     )
 
     assert missing == []
-    assert len(runner.commands) == 4
+    assert len(runner.commands) == 8
+    pip_command = next(
+        info for info in runner.commands if "--force-reinstall" in info["command"]
+    )
+    assert pip_command["env"] is not None
+    assert pip_command["env"].get("PIP_REQUIRE_VIRTUALENV") == "1"
 
 
 def test_ensure_setuptools_installs_when_missing(tmp_path: Path) -> None:
