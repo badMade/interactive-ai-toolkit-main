@@ -20,6 +20,9 @@ class DiagnosticError(RuntimeError):
 ExecutableLocator = Callable[[str], str | None]
 
 
+NUMPY_PINNED_SPEC = "numpy<2"
+
+
 @dataclass(frozen=True)
 class DiagnosticResult:
     """Structured representation of a diagnostic outcome."""
@@ -180,6 +183,66 @@ def diagnose_whisper(
     )
 
 
+def diagnose_numpy(
+    *, importer: Callable[[str], object] | None = None
+) -> DiagnosticResult:
+    """Verify that NumPy is installed with a supported major version."""
+
+    load_module = importer or import_module
+    try:
+        module = load_module("numpy")
+    except ModuleNotFoundError as exc:
+        return DiagnosticResult(
+            name="numpy",
+            status="unavailable",
+            details=f"Import failed: {exc}",
+            recommendation=(
+                "Install the compatible build with "
+                "`python -m pip install \"numpy<2\"`."
+            ),
+        )
+
+    version = str(getattr(module, "__version__", "")).strip()
+    if not version:
+        return DiagnosticResult(
+            name="numpy",
+            status="unavailable",
+            details="Unable to determine the installed NumPy version.",
+            recommendation=(
+                "Reinstall NumPy with `python -m pip install \"numpy<2\"` and rerun the diagnostics."
+            ),
+        )
+
+    major_component = version.split(".", 1)[0]
+    try:
+        major = int(major_component)
+    except ValueError:
+        return DiagnosticResult(
+            name="numpy",
+            status="unavailable",
+            details=f"Could not parse NumPy version '{version}'.",
+            recommendation=(
+                "Reinstall the dependency with `python -m pip install \"numpy<2\"`."
+            ),
+        )
+
+    if major >= 2:
+        return DiagnosticResult(
+            name="numpy",
+            status="unavailable",
+            details=f"Detected NumPy {version}, which is not supported.",
+            recommendation=(
+                "Downgrade to a compatible build with `python -m pip install \"numpy<2\"`."
+            ),
+        )
+
+    return DiagnosticResult(
+        name="numpy",
+        status="available",
+        details=f"NumPy {version} satisfies the project requirement {NUMPY_PINNED_SPEC}.",
+    )
+
+
 def render_results(results: Sequence[DiagnosticResult]) -> str:
     """Return a human-readable summary of diagnostic *results*."""
 
@@ -209,6 +272,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     results = [
         diagnose_python_version(),
+        diagnose_numpy(),
         diagnose_markitdown(),
         diagnose_whisper(),
     ]

@@ -16,7 +16,7 @@ REQUIREMENTS = (
     "torch",
     "soundfile",
     "sentencepiece",
-    "numpy<2.0",
+    "numpy<2",
     "pytest",
 )
 
