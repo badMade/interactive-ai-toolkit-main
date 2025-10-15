@@ -35,6 +35,45 @@ without depending on proprietary cloud services.
 └── tts.py                   # CLI for SpeechT5 text-to-speech generation
 ```
 
+## Universal LLM Client
+
+The repository also ships with `universal_llm`, a provider-agnostic client that
+routes chat, streaming, and embedding workloads across OpenAI, Azure OpenAI,
+Anthropic, Google Vertex AI, and locally hosted Ollama deployments. The facade
+exposes a consistent Pydantic-based data model and resilient HTTP helpers so
+applications can fail fast, retry transient errors, and swap providers without
+rewriting business logic.
+
+### Installation
+
+Install the package and its core dependencies directly from the repository
+root:
+
+```bash
+python -m pip install .
+```
+
+Optional extras enable provider-specific helpers and YAML configuration
+parsing:
+
+```bash
+python -m pip install .[providers]
+python -m pip install .[openai]  # or .[anthropic], .[azure], .[vertex], .[ollama], .[yaml]
+```
+
+### Command Line Interface
+
+After installation, the `llm` Typer-powered CLI becomes available. You can send
+single prompts using the shared configuration format:
+
+```bash
+llm chat "Explain retrieval-augmented generation in one paragraph" --model gpt-4o-mini
+```
+
+Use `--config path/to/config.yaml` to load provider credentials, `--provider` to
+override auto-selection, and `--show-usage` to display token accounting when the
+provider returns it.
+
 ## Prerequisites
 
 - Python **3.12**.
