@@ -17,7 +17,7 @@ import threading
 import time
 from dataclasses import dataclass
 from functools import wraps
-from typing import Any, Awaitable, Callable, Dict, List, Optional, Tuple, TypeVar, Union
+from typing import Any, AsyncIterator, Awaitable, Callable, Dict, Iterator, List, Optional, Tuple, TypeVar, Union
 
 try:
     from pydantic import BaseModel, Field, validator
@@ -258,6 +258,64 @@ class RateLimiter:
             await _asleep(remaining)
 
 
+def _yield_sse_events(lines: Iterator[str]) -> Iterator[Dict[str, Any]]:
+    """Convert an iterator of SSE lines into parsed JSON payloads."""
+
+    data_lines: List[str] = []
+    for raw_line in lines:
+        if raw_line is None:
+            continue
+        line = raw_line.rstrip("\r")
+        if not line:
+            if not data_lines:
+                continue
+            data = "\n".join(data_lines)
+            data_lines = []
+            if data.strip() == "[DONE]":
+                break
+            parsed = safe_json(data)
+            if parsed:
+                yield parsed
+            continue
+        if line.startswith("data:"):
+            data_lines.append(line[5:].lstrip(" "))
+    if data_lines:
+        data = "\n".join(data_lines)
+        if data.strip() != "[DONE]":
+            parsed = safe_json(data)
+            if parsed:
+                yield parsed
+
+
+async def _async_yield_sse_events(lines: AsyncIterator[str]) -> AsyncIterator[Dict[str, Any]]:
+    """Asynchronous companion to :func:`_yield_sse_events`."""
+
+    data_lines: List[str] = []
+    async for raw_line in lines:
+        if raw_line is None:
+            continue
+        line = raw_line.rstrip("\r")
+        if not line:
+            if not data_lines:
+                continue
+            data = "\n".join(data_lines)
+            data_lines = []
+            if data.strip() == "[DONE]":
+                break
+            parsed = safe_json(data)
+            if parsed:
+                yield parsed
+            continue
+        if line.startswith("data:"):
+            data_lines.append(line[5:].lstrip(" "))
+    if data_lines:
+        data = "\n".join(data_lines)
+        if data.strip() != "[DONE]":
+            parsed = safe_json(data)
+            if parsed:
+                yield parsed
+
+
 class SyncHttpClient:
     """Light-weight HTTP client wrapper that gracefully handles dependencies."""
 
@@ -291,6 +349,21 @@ class SyncHttpClient:
             payload = error.read()
             raise RuntimeError(f"HTTP {error.code} calling {url}: {payload}") from error
 
+    def stream(self, method: str, url: str, *, headers: Optional[Dict[str, str]] = None,
+               params: Optional[Dict[str, Any]] = None, json_body: Optional[Dict[str, Any]] = None) -> Iterator[Dict[str, Any]]:
+        if httpx is None:
+            raise RuntimeError("Streaming requests require the optional 'httpx' dependency")
+        with httpx.stream(method, url, headers=headers, params=params, json=json_body, timeout=self._timeout) as response:
+            response.raise_for_status()
+            content_type = response.headers.get("content-type", "")
+            if "text/event-stream" in content_type:
+                yield from _yield_sse_events(response.iter_lines())
+            else:
+                payload = response.read()
+                parsed = safe_json(payload)
+                if parsed:
+                    yield parsed
+
 
 class AsyncHttpClient:
     """Asynchronous companion for :class:`SyncHttpClient`."""
@@ -306,3 +379,20 @@ class AsyncHttpClient:
             response = await client.request(method, url, headers=headers, params=params, json=json_body)
             response.raise_for_status()
             return safe_json(response.text)
+
+    async def stream(self, method: str, url: str, *, headers: Optional[Dict[str, str]] = None,
+                     params: Optional[Dict[str, Any]] = None, json_body: Optional[Dict[str, Any]] = None) -> AsyncIterator[Dict[str, Any]]:
+        if httpx is None:
+            raise RuntimeError("Streaming requests require the optional 'httpx' dependency")
+        async with httpx.AsyncClient(timeout=self._timeout) as client:  # pragma: no cover - network
+            async with client.stream(method, url, headers=headers, params=params, json=json_body) as response:
+                response.raise_for_status()
+                content_type = response.headers.get("content-type", "")
+                if "text/event-stream" in content_type:
+                    async for chunk in _async_yield_sse_events(response.aiter_lines()):
+                        yield chunk
+                else:
+                    payload = await response.aread()
+                    parsed = safe_json(payload)
+                    if parsed:
+                        yield parsed
