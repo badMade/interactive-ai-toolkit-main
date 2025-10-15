@@ -442,3 +442,38 @@ def test_run_interactive_cli_reports_numpy_error(tmp_path: Path) -> None:
     )
 
     assert "numpy<2 required" in err.getvalue()
+
+
+def test_run_interactive_cli_reports_unknown_model(tmp_path: Path) -> None:
+    audio_path = tmp_path / "lesson.mp3"
+    audio_path.write_bytes(b"")
+
+    class _UnknownModelModule(_DummyModule):
+        def transcribe_audio(self, path: Path, model: str, use_fp16: bool) -> dict[str, str]:
+            raise ValueError("Unknown Whisper model 'mystery'. Choose from: base.")
+
+    module = _UnknownModelModule(audio_path=audio_path)
+    module.DEFAULT_AUDIO = str(audio_path)
+
+    out = io.StringIO()
+    err = io.StringIO()
+
+    prompts = [
+        "1",
+        "",  # default audio
+        "bogus",  # invalid model name
+        "n",
+        "",  # no CA bundle
+        "2",
+    ]
+
+    run.run_interactive_cli(
+        module,
+        prompt=_build_prompt(prompts),
+        stdout=out,
+        stderr=err,
+    )
+
+    output = err.getvalue()
+    assert "❌ Unknown Whisper model 'mystery'. Choose from: base." in output
+    assert "Traceback" not in output

@@ -184,7 +184,23 @@ def transcribe_audio(audio_path: Path,
     """
     ensure_numpy_compatible()
     module = load_whisper_module()
-    model = module.load_model(model_name)
+    try:
+        model = module.load_model(model_name)
+    except RuntimeError as exc:
+        available_models: tuple[str, ...] = AVAILABLE_MODELS
+        if hasattr(module, "available_models"):
+            try:
+                available_models = tuple(module.available_models())
+            except Exception:  # pragma: no cover - defensive fallback
+                available_models = AVAILABLE_MODELS
+        message = str(exc).lower()
+        is_unknown_model_error = "not found" in message or "unknown" in message
+        if is_unknown_model_error:
+            formatted_models = ", ".join(sorted(available_models))
+            raise ValueError(
+                f"Unknown Whisper model '{model_name}'. Choose from: {formatted_models}."
+            ) from exc
+        raise
     transcription_kwargs: Dict[str, Any] = {}
     if not use_fp16:
         transcription_kwargs["fp16"] = False
@@ -220,6 +236,9 @@ def main(argv: Sequence[str] | None = None) -> None:
     try:
         ensure_ffmpeg_available()
         result = transcribe_audio(audio_path, args.model, args.fp16)
+    except ValueError as exc:
+        print(exc, file=sys.stderr)
+        raise SystemExit(1) from None
     except ModuleNotFoundError as exc:
         whisper_message = _missing_whisper_message(exc)
         if whisper_message is None:
