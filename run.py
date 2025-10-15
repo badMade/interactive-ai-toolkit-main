@@ -83,7 +83,22 @@ def _canonical_package_name(name: str) -> str:
 
 
 def read_required_packages(requirements_path: Path) -> dict[str, str]:
-    """Parse *requirements_path* and return canonical requirement names."""
+    """Parse dependency definitions and normalize their package names.
+
+    Args:
+        requirements_path (Path): Absolute path to the ``requirements.txt``
+            file that stores the project's dependencies.
+
+    Returns:
+        dict[str, str]: Mapping of canonicalized package names to the original
+        requirement identifiers recorded in ``requirements_path``. Canonical
+        names are normalized to lower case, use underscores instead of hyphens,
+        and account for any known aliases.
+
+    Raises:
+        RuntimeError: If ``requirements_path`` does not exist or cannot be
+        accessed.
+    """
 
     if not requirements_path.is_file():
         raise RuntimeError(
@@ -153,13 +168,17 @@ class SetupLogStatus:
 def validate_setup_log(
     log_path: Path, requirements_path: Path
 ) -> SetupLogStatus:
-    """
-    Inspect *log_path* and confirm that it satisfies project requirements.
+    """Inspect the setup log and confirm that it satisfies requirements.
+
     Args:
-        log_path (Path): The path to the setup log file.
-        requirements_path (Path): The path to the requirements.txt file.
+        log_path (Path): Path to the JSON log that records previous setup runs.
+        requirements_path (Path): Path to the ``requirements.txt`` file
+            describing the expected dependencies.
+
     Returns:
-        SetupLogStatus: An object describing the state of the setup log."""
+        SetupLogStatus: Structured information describing whether the log is
+        valid and which requirements, if any, are missing.
+    """
 
     required_packages = read_required_packages(requirements_path)
     required_keys = tuple(required_packages.keys())
@@ -258,7 +277,24 @@ def run_setup_env(
     reason: str | None = None,
     missing_requirements: Sequence[str] | None = None,
 ) -> None:
-    """Run setup_env.py to configure the environment."""
+    """Execute ``setup_env.py`` to prepare the project environment.
+
+    Args:
+        reason (str | None, optional): Context describing why the setup routine
+            is being invoked. When provided, the reason is echoed to the
+            console before the subprocess starts.
+        missing_requirements (Sequence[str] | None, optional): Collection of
+            requirement names that triggered the setup run. The list is shown to
+            the user prior to launching the subprocess.
+
+    Raises:
+        RuntimeError: If ``setup_env.py`` is missing or if the subprocess exits
+        with a non-zero status code.
+
+    The function delegates to ``sys.executable`` to run ``setup_env.py`` as a
+    subprocess and streams its standard output directly to the terminal so the
+    user can observe progress in real time.
+    """
     setup_script = get_setup_env_script_path()
 
     if not setup_script.exists():
