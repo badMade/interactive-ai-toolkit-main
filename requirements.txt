@@ -8,3 +8,4 @@ soundfile==0.13.1
 sentencepiece==0.2.1
 pytest==8.4.2
 imageio[ffmpeg]
+pydantic>=1.10
