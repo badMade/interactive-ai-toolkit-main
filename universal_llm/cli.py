@@ -180,6 +180,25 @@ def _raise_cli_error(exc: Exception) -> None:
     raise typer.Exit(1)
 
 
+def _normalize_tools_spec(spec: Any) -> List[dict[str, Any]]:
+    if isinstance(spec, dict):
+        candidate: Any = spec.get("tools", spec)
+        if isinstance(candidate, dict):
+            candidate = [candidate]
+    else:
+        candidate = spec
+
+    if isinstance(candidate, (str, bytes)) or not isinstance(candidate, Iterable):
+        raise CLIError("Tool specification must define an iterable of tool objects.")
+
+    tools: List[dict[str, Any]] = []
+    for index, tool in enumerate(candidate):
+        if not isinstance(tool, dict):
+            raise CLIError(f"Tool entry at index {index} must be an object mapping.")
+        tools.append(tool)
+    return tools
+
+
 @app.command()
 def chat(
     prompt: str = typer.Argument(..., help="Prompt text or '-' to read from stdin."),
@@ -267,12 +286,18 @@ def tools(
         return
 
     try:
+        tools_payload = _normalize_tools_spec(tools_spec)
+    except CLIError as exc:
+        _raise_cli_error(exc)
+        return
+
+    try:
         response = llm.chat(
             model=_require_model(model),
             messages=[{"role": "user", "content": prompt_text}],
             provider=provider,
             temperature=temperature,
-            tools=tools_spec,
+            tools=tools_payload,
             json_output=json_output,
         )
     except Exception as exc:  # pragma: no cover
