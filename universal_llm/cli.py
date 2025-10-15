@@ -268,10 +268,12 @@ def stream(
             return
         if callable(async_stream_method):
             async def _run_async_stream() -> None:
-                chunks = await async_stream_method(
-                    messages=message_payload, **options["parameters"]
+                await _consume_async_stream(
+                    await async_stream_method(
+                        messages=message_payload, **options["parameters"]
+                    ),
+                    json_output=json_output,
                 )
-                await _consume_async_stream(chunks, json_output=json_output)
 
             asyncio.run(_run_async_stream())
             return
