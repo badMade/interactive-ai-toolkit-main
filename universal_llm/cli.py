@@ -267,12 +267,13 @@ def stream(
             _consume_stream(chunks, json_output=json_output)
             return
         if callable(async_stream_method):
-            asyncio.run(
-                _consume_async_stream(
-                    async_stream_method(messages=message_payload, **options["parameters"]),
-                    json_output=json_output,
+            async def _run_async_stream() -> None:
+                chunks = await async_stream_method(
+                    messages=message_payload, **options["parameters"]
                 )
-            )
+                await _consume_async_stream(chunks, json_output=json_output)
+
+            asyncio.run(_run_async_stream())
             return
         raise RuntimeError("Streaming is not supported by the selected provider.")
     except Exception as exc:  # pragma: no cover - provider specific failure paths
