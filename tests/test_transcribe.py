@@ -74,6 +74,15 @@ class TestTranscribe(unittest.TestCase):
         with self.assertRaises(FileNotFoundError):
             load_audio_path("non_existent_file.mp3")
 
+    def test_parse_arguments_enforces_model_choices(self):
+        """The CLI should only accept supported Whisper model names."""
+
+        args = transcribe.parse_arguments(["--model", "small"])  # valid choice
+        self.assertEqual(args.model, "small")
+
+        with self.assertRaises(SystemExit):
+            transcribe.parse_arguments(["--model", "unsupported-model"])
+
     def test_load_audio_path_is_not_a_file(self):
         """
         Tests that load_audio_path raises

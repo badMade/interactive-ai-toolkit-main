@@ -48,6 +48,22 @@ def load_whisper_module() -> ModuleType:
 
 DEFAULT_AUDIO = "lesson_recording.mp3"
 DEFAULT_MODEL = "base"
+AVAILABLE_MODELS: tuple[str, ...] = (
+    "tiny.en",
+    "tiny",
+    "base.en",
+    "base",
+    "small.en",
+    "small",
+    "medium.en",
+    "medium",
+    "large-v1",
+    "large-v2",
+    "large-v3",
+    "large",
+    "large-v3-turbo",
+    "turbo",
+)
 
 def parse_arguments(argv: Sequence[str] | None = None) -> Namespace:
     """Parse command-line options for the transcription script.
@@ -68,7 +84,12 @@ def parse_arguments(argv: Sequence[str] | None = None) -> Namespace:
     parser.add_argument(
         "--model",
         default=DEFAULT_MODEL,
-        help="Name of the Whisper model to load (default: %(default)s).",
+        choices=AVAILABLE_MODELS,
+        help=(
+            "Name of the Whisper model to load. "
+            "Select from available Whisper checkpoints "
+            "(default: %(default)s)."
+        ),
     )
     parser.add_argument(
         "--fp16",
