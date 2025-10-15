@@ -5,6 +5,9 @@ import json
 import os
 import subprocess
 from pathlib import Path
+import io
+from typing import Callable
+
 
 import pytest
 
@@ -293,3 +296,149 @@ def test_main_reports_missing_whisper(monkeypatch, capsys) -> None:
     assert captured.out == ""
     assert captured.err.strip() == message
     assert "Traceback" not in captured.err
+
+
+def _build_prompt(responses: list[str]) -> Callable[[str], str]:
+    iterator = iter(responses)
+
+    def _prompt(_: str) -> str:
+        try:
+            return next(iterator)
+        except StopIteration:
+            return "2"
+
+    return _prompt
+
+
+class _DummyModule:
+    DEFAULT_AUDIO = "sample.mp3"
+    DEFAULT_MODEL = "base"
+    NumpyCompatibilityError = type("DummyNumpyError", (Exception,), {})
+
+    def __init__(self, audio_path: Path | None = None):
+        self.audio_path = audio_path or Path(self.DEFAULT_AUDIO)
+        self.calls: list[tuple[Path, str, bool]] = []
+
+    def load_audio_path(self, raw: str) -> Path:
+        path = Path(raw)
+        if not path.exists():
+            raise FileNotFoundError(f"Audio file not found: {path}")
+        return path
+
+    def configure_certificate_bundle(self, bundle: str | None) -> None:
+        if bundle and not Path(bundle).exists():
+            raise FileNotFoundError(f"CA bundle not found: {bundle}")
+
+    def transcribe_audio(self, path: Path, model: str, use_fp16: bool) -> dict[str, str]:
+        self.calls.append((path, model, use_fp16))
+        return {"text": "Inclusive learning for everyone."}
+
+
+def test_run_interactive_cli_exit() -> None:
+    module = _DummyModule()
+    out = io.StringIO()
+    err = io.StringIO()
+
+    run.run_interactive_cli(
+        module,
+        prompt=_build_prompt(["2"]),
+        stdout=out,
+        stderr=err,
+    )
+
+    output = out.getvalue()
+    assert "Inclusive AI Toolkit CLI" in output
+    assert "Goodbye!" in output
+    assert err.getvalue() == ""
+
+
+def test_run_interactive_cli_transcribes_file(tmp_path: Path) -> None:
+    audio_path = tmp_path / "lesson.mp3"
+    audio_path.write_bytes(b"")
+    module = _DummyModule(audio_path=audio_path)
+    module.DEFAULT_AUDIO = str(audio_path)
+
+    out = io.StringIO()
+    err = io.StringIO()
+
+    prompts = [
+        "1",  # choose transcription
+        "",   # accept default audio
+        "",   # accept default model
+        "n",  # disable fp16
+        "",   # no CA bundle
+        "2",  # exit
+    ]
+
+    run.run_interactive_cli(
+        module,
+        prompt=_build_prompt(prompts),
+        stdout=out,
+        stderr=err,
+    )
+
+    output = out.getvalue()
+    assert "Transcript: Inclusive learning for everyone." in output
+    assert module.calls == [(audio_path, "base", False)]
+    assert err.getvalue() == ""
+
+
+def test_run_interactive_cli_handles_missing_audio(tmp_path: Path) -> None:
+    audio_path = tmp_path / "lesson.mp3"
+    audio_path.write_bytes(b"")
+    module = _DummyModule(audio_path=audio_path)
+
+    out = io.StringIO()
+    err = io.StringIO()
+
+    prompts = [
+        "1",  # choose transcription
+        str(tmp_path / "missing.mp3"),
+        "",  # model placeholder
+        "n",
+        "",  # CA bundle placeholder
+        "2",
+    ]
+
+    run.run_interactive_cli(
+        module,
+        prompt=_build_prompt(prompts),
+        stdout=out,
+        stderr=err,
+    )
+
+    assert "Audio file not found" in err.getvalue()
+    assert module.calls == []
+
+
+def test_run_interactive_cli_reports_numpy_error(tmp_path: Path) -> None:
+    audio_path = tmp_path / "lesson.mp3"
+    audio_path.write_bytes(b"")
+
+    class _ErrorModule(_DummyModule):
+        def transcribe_audio(self, path: Path, model: str, use_fp16: bool) -> dict[str, str]:
+            raise self.NumpyCompatibilityError("numpy<2 required")
+
+    module = _ErrorModule(audio_path=audio_path)
+    module.DEFAULT_AUDIO = str(audio_path)
+
+    out = io.StringIO()
+    err = io.StringIO()
+
+    prompts = [
+        "1",
+        "",  # default audio
+        "",  # default model
+        "n",
+        "",  # no CA bundle
+        "2",
+    ]
+
+    run.run_interactive_cli(
+        module,
+        prompt=_build_prompt(prompts),
+        stdout=out,
+        stderr=err,
+    )
+
+    assert "numpy<2 required" in err.getvalue()

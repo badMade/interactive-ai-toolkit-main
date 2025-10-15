@@ -10,7 +10,7 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 from types import ModuleType
-from typing import Mapping, Sequence
+from typing import Callable, Mapping, Sequence, TextIO
 
 from ffmpeg_support import (
     FFMPEG_INSTALL_MESSAGE,
@@ -434,6 +434,119 @@ def load_transcribe_module() -> ModuleType:
         raise
 
 
+PromptFunc = Callable[[str], str]
+
+
+def _safe_prompt(message: str, prompt: PromptFunc) -> str:
+    """Return the user's response while handling EOF gracefully."""
+
+    try:
+        return prompt(message)
+    except EOFError:
+        return ""
+
+
+def _transcribe_interactively(
+    module: ModuleType,
+    *,
+    prompt: PromptFunc,
+    stdout: TextIO,
+    stderr: TextIO,
+) -> None:
+    """Guide the user through transcribing a single audio file."""
+
+    default_audio = getattr(module, "DEFAULT_AUDIO", "")
+    default_model = getattr(module, "DEFAULT_MODEL", "base")
+
+    raw_audio = _safe_prompt(
+        f"Audio file path [{default_audio}]: ",
+        prompt,
+    ).strip()
+    audio_candidate = raw_audio or default_audio
+    if not audio_candidate:
+        print("❌ Please provide an audio file path.", file=stderr)
+        return
+    try:
+        audio_path = module.load_audio_path(audio_candidate)
+    except FileNotFoundError as exc:
+        print(f"❌ {exc}", file=stderr)
+        return
+
+    model_name = _safe_prompt(
+        f"Model name [{default_model}]: ",
+        prompt,
+    ).strip() or default_model
+
+    fp16_answer = _safe_prompt("Enable fp16 inference? [y/N]: ", prompt).strip().lower()
+    use_fp16 = fp16_answer in {"y", "yes"}
+
+    ca_bundle_input = _safe_prompt(
+        "Optional CA bundle path (press Enter to skip): ",
+        prompt,
+    ).strip()
+    ca_bundle = ca_bundle_input or None
+    try:
+        module.configure_certificate_bundle(ca_bundle)
+    except FileNotFoundError as exc:
+        print(f"❌ {exc}", file=stderr)
+        return
+
+    try:
+        result = module.transcribe_audio(audio_path, model_name, use_fp16)
+    except ModuleNotFoundError as exc:
+        whisper_message = _missing_whisper_message(exc)
+        if whisper_message is None:
+            raise
+        print(whisper_message, file=stderr)
+        return
+    except getattr(module, "NumpyCompatibilityError", RuntimeError) as exc:
+        print(exc, file=stderr)
+        return
+
+    text = result.get("text")
+    if text is None:
+        print("Transcript: <no text returned>", file=stdout)
+        return
+    print(f"Transcript: {text}", file=stdout)
+
+
+def run_interactive_cli(
+    module: ModuleType,
+    *,
+    prompt: PromptFunc = input,
+    stdout: TextIO = sys.stdout,
+    stderr: TextIO = sys.stderr,
+) -> None:
+    """Provide a simple interactive loop for the Inclusive AI Toolkit."""
+
+    print("Inclusive AI Toolkit CLI", file=stdout)
+    try:
+        while True:
+            print("", file=stdout)
+            print("Choose an option:", file=stdout)
+            print("  1) Transcribe an audio file", file=stdout)
+            print("  2) Exit", file=stdout)
+            choice = _safe_prompt("Enter a choice [1-2]: ", prompt).strip().lower()
+            if choice in {"2", "exit", "quit", "q"}:
+                print("Goodbye!", file=stdout)
+                return
+            if choice in {"1", "transcribe", "t"}:
+                _transcribe_interactively(
+                    module,
+                    prompt=prompt,
+                    stdout=stdout,
+                    stderr=stderr,
+                )
+                continue
+            if choice == "":
+                # Treat an empty response as a request to exit when stdin closes.
+                print("Goodbye!", file=stdout)
+                return
+            print("Please choose 1 to transcribe or 2 to exit.", file=stdout)
+    except KeyboardInterrupt:
+        print("\nGoodbye!", file=stdout)
+
+
 def main() -> None:
     """Import and execute the project's primary command-line entry point."""
 
@@ -449,13 +562,10 @@ def main() -> None:
         print(message, file=sys.stderr)
         raise SystemExit(1) from None
     module = load_transcribe_module()
-    try:
-        launch = module.main
-    except AttributeError as exc:  # pragma: no cover - defensive guard
-        raise RuntimeError(
-            "The 'transcribe' module does not expose a callable 'main'."
-        ) from exc
-    launch()
+    if sys.argv[1:]:
+        module.main(sys.argv[1:])
+        return
+    run_interactive_cli(module)
 
 
 if __name__ == "__main__":

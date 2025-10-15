@@ -12,7 +12,7 @@ from functools import lru_cache
 from importlib import import_module
 from pathlib import Path
 from types import ModuleType
-from typing import Any, Dict
+from typing import Any, Dict, Sequence
 
 from compatibility import ensure_numpy_compatible, NumpyCompatibilityError
 from ffmpeg_support import (
@@ -49,7 +49,7 @@ def load_whisper_module() -> ModuleType:
 DEFAULT_AUDIO = "lesson_recording.mp3"
 DEFAULT_MODEL = "base"
 
-def parse_arguments() -> Namespace:
+def parse_arguments(argv: Sequence[str] | None = None) -> Namespace:
     """Parse command-line options for the transcription script.
 
     Returns:
@@ -85,7 +85,7 @@ def parse_arguments() -> Namespace:
             "proxies without disabling verification."
         ),
     )
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
 def load_audio_path(raw_path: str) -> Path:
@@ -187,13 +187,13 @@ def _missing_whisper_message(exc: ModuleNotFoundError) -> str | None:
     return None
 
 
-def main() -> None:
+def main(argv: Sequence[str] | None = None) -> None:
     """Execute the transcription workflow for command-line usage.
 
     The function parses user-provided options, validates the audio source, and
     prints the transcript text returned by Whisper.
     """
-    args = parse_arguments()
+    args = parse_arguments(argv)
     configure_certificate_bundle(args.ca_bundle)
     audio_path = load_audio_path(args.audio_path)
     try:
