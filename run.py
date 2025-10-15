@@ -284,8 +284,8 @@ def run_setup_env(
             is being invoked. When provided, the reason is echoed to the
             console before the subprocess starts.
         missing_requirements (Sequence[str] | None, optional): Collection of
-            requirement names that triggered the setup run. The list is shown to
-            the user prior to launching the subprocess.
+            requirement names that triggered the setup run.
+            The list is shown to the user prior to launching the subprocess.
 
     Raises:
         RuntimeError: If ``setup_env.py`` is missing or if the subprocess exits
@@ -513,7 +513,8 @@ def _transcribe_interactively(
         prompt,
     ).strip() or default_model
 
-    fp16_answer = _safe_prompt("Enable fp16 inference? [y/N]: ", prompt).strip().lower()
+    fp16_answer = _safe_prompt("Enable fp16 inference? [y/N]: ",
+                               prompt).strip().lower()
     use_fp16 = fp16_answer in {"y", "yes"}
 
     ca_bundle_input = _safe_prompt(
@@ -565,7 +566,8 @@ def run_interactive_cli(
             print("Choose an option:", file=stdout)
             print("  1) Transcribe an audio file", file=stdout)
             print("  2) Exit", file=stdout)
-            choice = _safe_prompt("Enter a choice [1-2]: ", prompt).strip().lower()
+            choice = _safe_prompt("Enter a choice [1-2]: ",
+                                  prompt).strip().lower()
             if choice in {"2", "exit", "quit", "q"}:
                 print("Goodbye!", file=stdout)
                 return
@@ -578,7 +580,8 @@ def run_interactive_cli(
                 )
                 continue
             if choice == "":
-                # Treat an empty response as a request to exit when stdin closes.
+                # Treat an empty response as a request to exit
+                # when stdin closes.
                 print("Goodbye!", file=stdout)
                 return
             print("Please choose 1 to transcribe or 2 to exit.", file=stdout)
