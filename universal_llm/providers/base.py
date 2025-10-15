@@ -105,15 +105,15 @@ class Provider(ABC):
             raise RuntimeError(f"{self.name} does not support streaming")
         self._maybe_rate_limit()
         payload = self.build_payload(request, stream=True, **kwargs)
-        call = with_retry(self._config.retry)(self._sync_client.request)
-        response_payload = call("POST", self.endpoint(request, stream=True), headers=self.headers(request), json_body=payload)
-        # Providers surface streaming as chunked responses; here we mimic the behavior
-        # by coercing iterable chunks if the payload already contains them.
-        chunks = response_payload.get("chunks") if isinstance(response_payload, dict) else None
-        if not chunks:
-            yield self.parse_response(response_payload, request=request)
-            return
-        for chunk in chunks:
+        stream = self._sync_client.stream(
+            "POST",
+            self.endpoint(request, stream=True),
+            headers=self.headers(request),
+            json_body=payload,
+        )
+        for chunk in stream:
+            if not chunk:
+                continue
             yield self.parse_response(chunk, request=request)
 
     def embed(self, request: LLMRequest, **kwargs: Any) -> LLMResponse:
@@ -143,13 +143,14 @@ class Provider(ABC):
             raise RuntimeError(f"{self.name} does not support streaming")
         await self._maybe_rate_limit_async()
         payload = self.build_payload(request, stream=True, **kwargs)
-        call = with_retry_async(self._config.retry)(self._async_client.request)
-        response_payload = await call("POST", self.endpoint(request, stream=True), headers=self.headers(request), json_body=payload)
-        chunks = response_payload.get("chunks") if isinstance(response_payload, dict) else None
-        if not chunks:
-            yield self.parse_response(response_payload, request=request)
-            return
-        for chunk in chunks:
+        async for chunk in self._async_client.stream(
+            "POST",
+            self.endpoint(request, stream=True),
+            headers=self.headers(request),
+            json_body=payload,
+        ):
+            if not chunk:
+                continue
             yield self.parse_response(chunk, request=request)
 
     async def aembed(self, request: LLMRequest, **kwargs: Any) -> LLMResponse:

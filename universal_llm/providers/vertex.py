@@ -24,10 +24,22 @@ class VertexProvider(Provider):
             embedding_input = request.extra.get("input")
             if embedding_input is None and request.messages:
                 embedding_input = [self._extract_text(message) for message in request.messages]
-            payload = {
-                "model": request.model,
-                "content": embedding_input,
-            }
+            texts: List[str] = []
+            if isinstance(embedding_input, str):
+                texts = [embedding_input]
+            elif isinstance(embedding_input, (list, tuple)):
+                texts = [str(item) for item in embedding_input]
+            elif embedding_input is not None:
+                texts = [str(embedding_input)]
+
+            formatted_inputs = [{"parts": [{"text": text}]} for text in texts if text]
+            payload: Dict[str, Any] = {"model": request.model}
+            if not formatted_inputs:
+                payload["content"] = {"parts": [{"text": ""}]}
+            elif len(formatted_inputs) == 1:
+                payload["content"] = formatted_inputs[0]
+            else:
+                payload["contents"] = formatted_inputs
             payload.update(kwargs)
             return payload
 
