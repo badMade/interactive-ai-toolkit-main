@@ -96,7 +96,7 @@ The requirements file pins the compatible toolchain (NumPy 1.26.4, PyTorch
 2.2.2, Whisper 20250625, and related libraries) so you do not need to manage
 individual package constraints manually.
 
-> **Note:** When the CLI reports `OpenAI Whisper is not installed. Install it with 'pip install openai-whisper' or run setup_env.py to configure the environment.`, run `pip install openai-whisper` in your active environment to install the missing dependency.
+> **Note:** When the CLI reports `OpenAI Whisper is not installed. Install it with 'pip install openai-whisper' or run setup_env.py to configure the environment.`, run `pip install openai-whisper==20250625` in your active environment to install the missing dependency. The version pin matches the latest stable release confirmed with `python -m pip index versions openai-whisper`.
 
 ### 3. Install FFmpeg
 
