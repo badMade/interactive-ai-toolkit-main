@@ -119,6 +119,27 @@ class TestTranscribe(unittest.TestCase):
         # Assert the result
         self.assertEqual(result["text"], "This is a test transcript.")
 
+    @patch("transcribe.ensure_numpy_compatible")
+    @patch("transcribe.load_whisper_module")
+    def test_transcribe_audio_reports_unknown_model(
+        self,
+        mock_load_whisper,
+        mock_numpy_check,
+    ):
+        module = MagicMock()
+        module.load_model.side_effect = RuntimeError("model not found")
+        module.available_models.return_value = ["tiny", "base"]
+        mock_load_whisper.return_value = module
+
+        with self.assertRaises(ValueError) as exc_info:
+            transcribe_audio(self.test_file, "mystery", False)
+
+        message = str(exc_info.exception)
+        self.assertIn("Unknown Whisper model 'mystery'", message)
+        self.assertIn("base", message)
+        module.available_models.assert_called_once_with()
+        mock_numpy_check.assert_called_once_with()
+
     @patch("transcribe.import_module", side_effect=ModuleNotFoundError(
         "No module named 'whisper'"))
     def test_load_whisper_module_missing_dependency(self, mock_import_module):
@@ -160,6 +181,36 @@ class TestTranscribe(unittest.TestCase):
             stderr.getvalue().strip(),
             transcribe.MISSING_WHISPER_MESSAGE,
         )
+        mock_ensure_ffmpeg.assert_called_once_with()
+
+    @patch("transcribe.ensure_ffmpeg_available")
+    @patch("transcribe.load_audio_path")
+    @patch("transcribe.parse_arguments")
+    def test_main_reports_unknown_model(
+        self,
+        mock_parse_arguments,
+        mock_load_audio_path,
+        mock_ensure_ffmpeg,
+    ):
+        args = Namespace(
+            audio_path="audio.mp3",
+            model="mystery",
+            fp16=False,
+            ca_bundle=None,
+        )
+        mock_parse_arguments.return_value = args
+        mock_load_audio_path.return_value = Path("audio.mp3")
+
+        with patch(
+            "transcribe.transcribe_audio",
+            side_effect=ValueError("Unknown Whisper model 'mystery'. Choose from: base."),
+        ):
+            with patch("sys.stderr", new_callable=io.StringIO) as stderr:
+                with self.assertRaises(SystemExit) as exit_info:
+                    transcribe.main()
+
+        self.assertEqual(exit_info.exception.code, 1)
+        self.assertIn("Unknown Whisper model 'mystery'", stderr.getvalue())
         mock_ensure_ffmpeg.assert_called_once_with()
 
     @patch("transcribe.ensure_ffmpeg_available")

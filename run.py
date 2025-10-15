@@ -529,6 +529,9 @@ def _transcribe_interactively(
 
     try:
         result = module.transcribe_audio(audio_path, model_name, use_fp16)
+    except ValueError as exc:
+        print(f"❌ {exc}", file=stderr)
+        return
     except ModuleNotFoundError as exc:
         whisper_message = _missing_whisper_message(exc)
         if whisper_message is None:
