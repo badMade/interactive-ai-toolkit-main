@@ -40,12 +40,12 @@ vertex = ["google-cloud-aiplatform>=1.49.0", "google-auth>=2.14.0"]
 ollama = ["ollama>=0.1.8"]
 yaml = ["pyyaml>=6.0"]
 providers = [
-  ".[anthropic]",
-  ".[openai]",
-  ".[azure]",
-  ".[vertex]",
-  ".[ollama]",
-  ".[yaml]",
+  "universal-llm[anthropic]",
+  "universal-llm[openai]",
+  "universal-llm[azure]",
+  "universal-llm[vertex]",
+  "universal-llm[ollama]",
+  "universal-llm[yaml]",
 ]
 
 [project.scripts]
