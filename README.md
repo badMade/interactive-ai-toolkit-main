@@ -17,6 +17,37 @@ without depending on proprietary cloud services.
 - **Optional cloud integration**: The repository documents how to call the
   OpenAI Whisper API for scenarios where managed infrastructure is preferred.
 
+## Quickstart
+
+Run the LLM command line tools directly after installing the dependencies:
+
+```bash
+python -m universal_llm.cli chat "Summarize today's lecture in plain language" \
+  --provider openai --model gpt-4o-mini
+```
+
+The CLI keeps prompts flexible—you can stream responses, call tools, or embed
+text:
+
+```bash
+# Stream tokens as they arrive (enable --json for structured deltas)
+python -m universal_llm.cli stream "Draft an inclusive classroom activity" \
+  --provider openai --model gpt-4o-mini --json
+
+# Provide a JSON tool specification for function calling
+python -m universal_llm.cli tools "Generate a differentiated lesson plan" \
+  --tools path/to/tools.json --provider openai
+
+# Produce embeddings for later retrieval
+python -m universal_llm.cli embed "Universal design for learning" --provider openai
+```
+
+If a provider requires credentials (for example `OPENAI_API_KEY`) and they are
+missing, the CLI exits with a clear reminder to configure environment variables
+or supply a `--config` file so you never wonder why a request failed. Use
+`--config path/to/settings.json` (or another supported format) to centralize
+API keys and defaults shared by multiple commands.
+
 ## Repository Structure
 
 ```text
