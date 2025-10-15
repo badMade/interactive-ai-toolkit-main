@@ -13,6 +13,7 @@ import json
 import logging
 import math
 import random
+import re
 import threading
 import time
 from dataclasses import dataclass
@@ -38,6 +39,10 @@ except Exception:  # pragma: no cover - fallback path if httpx is unavailable
 
 
 _LOGGER = logging.getLogger(__name__)
+
+
+_JSON_CANDIDATE_RE = re.compile(r"(\{.*\}|\[.*\])", re.DOTALL)
+_MAX_JSON_ATTEMPTS = 3
 
 
 class ImmutableModel(BaseModel):
@@ -116,26 +121,50 @@ class LLMResponse(ImmutableModel):
 
 
 def safe_json(data: Union[str, bytes, Dict[str, Any], List[Any]]) -> Dict[str, Any]:
-    """Parse JSON content without raising unexpected exceptions.
+    """Parse JSON content while retrying to salvage wrapped payloads.
 
-    The helper gracefully handles common error scenarios.  If JSON parsing
-    fails, an empty dictionary is returned to keep downstream code robust
-    while logging the issue for observability.
+    The helper gracefully handles common error scenarios.  When JSON parsing
+    fails it attempts to extract a plausible JSON object or array using a
+    regular expression guardrail and retries a bounded number of times.  If
+    parsing still fails after the retries, an empty dictionary is returned to
+    keep downstream code robust while logging the issue for observability.
     """
 
     if isinstance(data, dict):
         return data
     if isinstance(data, list):
         return {"values": data}
-    try:
-        if isinstance(data, bytes):
-            data = data.decode("utf-8")
-        if not data:
-            return {}
-        return json.loads(data)
-    except json.JSONDecodeError:  # pragma: no cover - defensive branch
-        _LOGGER.debug("failed to decode json payload", exc_info=True)
+
+    if isinstance(data, bytes):
+        data = data.decode("utf-8", errors="ignore")
+    if data is None:
         return {}
+
+    text = str(data).strip()
+    if not text:
+        return {}
+
+    attempts = 0
+    candidate = text
+    last_error: Optional[Exception] = None
+    while attempts < _MAX_JSON_ATTEMPTS and candidate:
+        try:
+            return json.loads(candidate)
+        except json.JSONDecodeError as exc:
+            last_error = exc
+            attempts += 1
+            match = _JSON_CANDIDATE_RE.search(candidate)
+            if not match and candidate != text:
+                match = _JSON_CANDIDATE_RE.search(text)
+            if not match:
+                break
+            new_candidate = match.group(0).strip()
+            if new_candidate == candidate:
+                break
+            candidate = new_candidate
+
+    _LOGGER.debug("failed to decode json payload", exc_info=last_error)
+    return {}
 
 
 _T = TypeVar("_T")
