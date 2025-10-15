@@ -17,6 +17,35 @@ without depending on proprietary cloud services.
 - **Optional cloud integration**: The repository documents how to call the
   OpenAI Whisper API for scenarios where managed infrastructure is preferred.
 
+## Quickstart
+
+After installing the project dependencies you can call the Universal LLM CLI
+directly. The interface supports plain prompts, streaming responses, tool
+invocations, and embeddings while sharing configuration across commands.
+
+```bash
+python -m universal_llm.cli chat "Summarize today's lecture in plain language" \
+  --model gpt-4o-mini --provider openai
+
+# Stream responses in real time (``--json`` collects structured chunks)
+python -m universal_llm.cli stream "Draft an inclusive classroom activity" \
+  --model gpt-4o-mini --provider openai --json
+
+# Load a JSON tool specification before invoking the model
+python -m universal_llm.cli tools "Generate a differentiated lesson plan" \
+  --tools path/to/tools.json --model gpt-4o-mini --provider openai
+
+# Produce embeddings for later retrieval workflows
+python -m universal_llm.cli embed "Universal design for learning" \
+  --model text-embedding-3-small --provider openai
+```
+
+Use ``--config path/to/settings.yaml`` (JSON is also accepted) to centralise API
+keys and model defaults. When a provider requires credentials like
+``OPENAI_API_KEY`` and they are missing, the CLI exits with a helpful reminder to
+set the appropriate environment variables or supply the configuration file, so
+requests never fail silently.
+
 ## Repository Structure
 
 ```text
@@ -63,16 +92,11 @@ python -m pip install .[openai]  # or .[anthropic], .[azure], .[vertex], .[ollam
 
 ### Command Line Interface
 
-After installation, the `llm` Typer-powered CLI becomes available. You can send
-single prompts using the shared configuration format:
-
-```bash
-llm chat "Explain retrieval-augmented generation in one paragraph" --model gpt-4o-mini
-```
-
-Use `--config path/to/config.yaml` to load provider credentials, `--provider` to
-override auto-selection, and `--show-usage` to display token accounting when the
-provider returns it.
+The `python -m universal_llm.cli` entry point surfaces the same functionality as
+the programmatic facade. Each command accepts ``--model`` and optionally
+``--provider``/``--temperature`` so workflows stay consistent across providers.
+Pair the CLI with ``--config`` to reuse credentials, rate limits, and default
+models defined in JSON or YAML.
 
 ## Prerequisites
 
