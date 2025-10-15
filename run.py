@@ -437,6 +437,7 @@ def main() -> None:
     """Import and execute the project's primary command-line entry point."""
 
     ensure_virtual_environment()
+    module = load_transcribe_module()
     try:
         ensure_system_ffmpeg_available()
     except FFmpegInstallationError as exc:
@@ -447,7 +448,6 @@ def main() -> None:
             message = FFMPEG_INSTALL_MESSAGE
         print(message, file=sys.stderr)
         raise SystemExit(1) from None
-    module = load_transcribe_module()
     try:
         launch = module.main
     except AttributeError as exc:  # pragma: no cover - defensive guard
