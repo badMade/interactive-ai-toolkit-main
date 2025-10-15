@@ -23,8 +23,8 @@ def validate_numpy_version(version: str) -> str:
         str: Normalized version string when it meets the compatibility policy.
 
     Raises:
-        NumpyCompatibilityError: If the version cannot be parsed or violates the
-            toolkit's compatibility requirements.
+        NumpyCompatibilityError: If the version cannot be parsed or violates
+        the toolkit's compatibility requirements.
     """
 
     normalized = str(version or "").strip()
@@ -45,7 +45,8 @@ def validate_numpy_version(version: str) -> str:
     if major >= 2:
         raise NumpyCompatibilityError(
             "Detected NumPy version "
-            f"{normalized}. The toolkit requires {NUMPY_PINNED_SPEC} for compatibility. "
+            f"{normalized}. The toolkit requires {NUMPY_PINNED_SPEC} "
+            "for compatibility. "
             f"Run `{NUMPY_REINSTALL_COMMAND}` to install a supported build."
         )
 
