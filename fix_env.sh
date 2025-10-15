@@ -9,6 +9,7 @@ fi
 
 OS_NAME="$(uname -s)"
 ARCH_NAME="$(uname -m)"
+WHISPER_VERSION="20250625"
 if [[ "${OS_NAME}" != "Darwin" || "${ARCH_NAME}" != "x86_64" ]]; then
   echo "Error: This environment fix script only supports macOS on x86_64." >&2
   echo "Detected platform: ${OS_NAME} ${ARCH_NAME}" >&2
@@ -33,7 +34,7 @@ python -m pip install --force-reinstall \
   torch==2.2.2 \
   torchvision==0.17.2 \
   torchaudio==2.2.2 \
-  openai-whisper==20250625 \
+  "openai-whisper==${WHISPER_VERSION}" \
   transformers==4.57.0 \
   soundfile==0.13.1 \
   sentencepiece==0.2.1 \
