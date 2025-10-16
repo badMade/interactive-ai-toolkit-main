@@ -192,7 +192,7 @@ def transcribe_audio(audio_path: Path,
         if hasattr(module, "available_models"):
             try:
                 available_models = tuple(module.available_models())
-            except Exception:  # pragma: no cover - defensive fallback
+            except (AttributeError, TypeError, RuntimeError):  # pragma: no cover - defensive fallback
                 available_models = AVAILABLE_MODELS
         message = str(exc).lower()
         is_unknown_model_error = "not found" in message or "unknown" in message

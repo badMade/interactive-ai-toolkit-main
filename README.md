@@ -27,6 +27,10 @@ invocations, and embeddings while sharing configuration across commands.
 python -m universal_llm.cli chat "Summarize today's lecture in plain language" \
   --model gpt-4o-mini --provider openai
 
+# Use Claude 3.5 Sonnet for advanced reasoning tasks
+python -m universal_llm.cli chat "Explain quantum computing to high school students" \
+  --model claude-3-5-sonnet-20241022 --provider anthropic
+
 # Stream responses in real time (``--json`` collects structured chunks)
 python -m universal_llm.cli stream "Draft an inclusive classroom activity" \
   --model gpt-4o-mini --provider openai --json
@@ -68,10 +72,10 @@ requests never fail silently.
 
 The repository also ships with `universal_llm`, a provider-agnostic client that
 routes chat, streaming, and embedding workloads across OpenAI, Azure OpenAI,
-Anthropic, Google Vertex AI, and locally hosted Ollama deployments. The facade
-exposes a consistent Pydantic-based data model and resilient HTTP helpers so
-applications can fail fast, retry transient errors, and swap providers without
-rewriting business logic.
+Anthropic (including Claude 3.5 Sonnet), Google Vertex AI, and locally hosted 
+Ollama deployments. The facade exposes a consistent Pydantic-based data model 
+and resilient HTTP helpers so applications can fail fast, retry transient errors, 
+and swap providers without rewriting business logic.
 
 ### Installation
 
