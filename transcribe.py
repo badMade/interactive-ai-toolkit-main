@@ -65,6 +65,7 @@ AVAILABLE_MODELS: tuple[str, ...] = (
     "turbo",
 )
 
+
 def parse_arguments(argv: Sequence[str] | None = None) -> Namespace:
     """Parse command-line options for the transcription script.
 
@@ -198,7 +199,8 @@ def transcribe_audio(audio_path: Path,
         if is_unknown_model_error:
             formatted_models = ", ".join(sorted(available_models))
             raise ValueError(
-                f"Unknown Whisper model '{model_name}'. Choose from: {formatted_models}."
+                f"Unknown Whisper model '{model_name}'. "
+                f"Choose from: {formatted_models}."
             ) from exc
         raise
     transcription_kwargs: Dict[str, Any] = {}

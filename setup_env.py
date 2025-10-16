@@ -214,7 +214,10 @@ def _python_command_matches_requirement(
         )
     except SetupError:
         return False
-    return version.strip() == f"{REQUIRED_PYTHON_VERSION[0]}.{REQUIRED_PYTHON_VERSION[1]}"
+    expected_version = (
+        f"{REQUIRED_PYTHON_VERSION[0]}.{REQUIRED_PYTHON_VERSION[1]}"
+    )
+    return version.strip() == expected_version
 
 
 def resolve_python_command(
@@ -222,13 +225,20 @@ def resolve_python_command(
 ) -> tuple[str, ...]:
     """Return a command that launches the required Python interpreter."""
 
-    if (sys.version_info.major, sys.version_info.minor) == REQUIRED_PYTHON_VERSION:
+    if (
+        sys.version_info.major,
+        sys.version_info.minor,
+    ) == REQUIRED_PYTHON_VERSION:
         return (sys.executable,)
 
     candidates: list[tuple[str, ...]] = []
     if os.name == "nt":
         candidates.append(
-            ("py", f"-{REQUIRED_PYTHON_VERSION[0]}.{REQUIRED_PYTHON_VERSION[1]}")
+            (
+                "py",
+                f"-{REQUIRED_PYTHON_VERSION[0]}."
+                f"{REQUIRED_PYTHON_VERSION[1]}",
+            )
         )
     candidates.extend((("python3.12",), ("python3",), ("python",)))
 
@@ -245,7 +255,8 @@ def resolve_python_command(
 def _virtualenv_uses_required_python(
     venv_path: Path, *, runner: CommandRunner | None = None
 ) -> bool:
-    """Return ``True`` when the virtual environment already targets Python 3.12."""
+    """Return ``True`` when the virtual environment already
+    targets Python 3.12."""
 
     recorded_version = _read_pyvenv_version(venv_path)
     if recorded_version == REQUIRED_PYTHON_VERSION:
@@ -263,7 +274,10 @@ def _virtualenv_uses_required_python(
         )
     except SetupError:
         return False
-    return version.strip() == f"{REQUIRED_PYTHON_VERSION[0]}.{REQUIRED_PYTHON_VERSION[1]}"
+    expected_version = (
+        f"{REQUIRED_PYTHON_VERSION[0]}.{REQUIRED_PYTHON_VERSION[1]}"
+    )
+    return version.strip() == expected_version
 
 
 def ensure_ffmpeg_available(*, runner: CommandRunner | None = None) -> None:
@@ -316,7 +330,8 @@ def create_virtualenv(
             )
             return
         logging.info(
-            "Removing virtual environment at %s because it is not using Python %s.%s",
+            "Removing virtual environment at %s because it is not "
+            "using Python %s.%s",
             venv_path,
             *REQUIRED_PYTHON_VERSION,
         )

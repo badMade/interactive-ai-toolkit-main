@@ -12,15 +12,17 @@ INSTALL_SCRIPT_RELATIVE_PATH = Path("scripts") / "install_ffmpeg.sh"
 
 FFMPEG_INSTALL_MESSAGE = (
     "ffmpeg is required to transcribe audio. "
-    "Run scripts/install_ffmpeg.sh or install it with Homebrew (`brew install ffmpeg`) "
-    "or apt (`sudo apt-get install ffmpeg`). Alternatively, run `pip install imageio[ffmpeg]` "
-    "to install a Python-managed binary. On Windows, install FFmpeg from "
+    "Run scripts/install_ffmpeg.sh or install it with Homebrew "
+    "(`brew install ffmpeg`) or apt (`sudo apt-get install ffmpeg`). "
+    "Alternatively, run `pip install imageio[ffmpeg]` to install a "
+    "Python-managed binary. On Windows, install FFmpeg from "
     "https://ffmpeg.org/download.html or run `winget install Gyan.FFmpeg`."
 )
 
 
 class CommandRunner(Protocol):
-    """Protocol matching the subset of ``subprocess.run`` used in this module."""
+    """Protocol matching the subset of ``subprocess.run``
+    used in this module."""
 
     def __call__(
         self,
@@ -144,7 +146,8 @@ def ensure_ffmpeg_available(
         return version_output or None
     except FFmpegInstallationError as probe_error:
         if not allow_auto_install:
-            raise FFmpegInstallationError(FFMPEG_INSTALL_MESSAGE) from probe_error
+            raise FFmpegInstallationError(
+                FFMPEG_INSTALL_MESSAGE) from probe_error
 
         try:
             install_output = install_ffmpeg(
@@ -169,4 +172,3 @@ def ensure_ffmpeg_available(
             if piece and piece.strip()
         )
         return combined or None
-

@@ -126,18 +126,14 @@ ensure the scripts work consistently across machines.
 
 ### 1. Create and activate a virtual environment
 
-<details>
-<summary>Windows (PowerShell)</summary>
+#### Windows (PowerShell)
 
 ```powershell
 py -3.12 -m venv .venv
 .\.venv\Scripts\Activate
 ```
 
-</details>
-
-<details>
-<summary>macOS / Linux (bash or zsh)</summary>
+#### macOS / Linux (bash or zsh)
 
 ```bash
 python3.12 -m venv .venv
@@ -145,10 +141,6 @@ source .venv/bin/activate
 # Confirm the interpreter is the expected release
 python3.12 --version
 ```
-
-</details>
-
-### 2. Upgrade pip and install dependencies
 
 ```bash
 python -m pip install --upgrade pip
@@ -340,7 +332,6 @@ results than local hardware can provide.
 - `python -m pip install -r requirements.txt`
 - After installing FFmpeg, run `ffmpeg -version` to confirm the command is on
   your `PATH`, then run `python transcribe.py` or `python tts.py`.
-
 
 ## Development Guidelines
 
