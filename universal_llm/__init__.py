@@ -97,6 +97,7 @@ _DEFAULT_PREFIX_HINTS = {
     "o1-": "openai",
     "text-": "openai",
     "claude-": "anthropic",
+    "claude-3-5-sonnet": "anthropic",
     "opus-": "anthropic",
     "sonnet-": "anthropic",
     "gemini-": "vertex",

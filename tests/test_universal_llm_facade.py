@@ -71,3 +71,20 @@ def test_llm_explicit_provider_override(monkeypatch):
     assert response.message.content == "openai-reply"
     provider_name, _ = log[0]
     assert provider_name == "openai"
+
+
+def test_llm_supports_claude_3_5_sonnet(monkeypatch):
+    """Verify that Claude 3.5 Sonnet models are routed to Anthropic provider."""
+    log: list[tuple[str, object]] = []
+    llm = _make_llm(monkeypatch, log)
+
+    # Test the latest Claude 3.5 Sonnet model
+    response = llm.chat(
+        "claude-3-5-sonnet-20241022",
+        messages=[{"role": "user", "content": "Explain quantum computing"}],
+    )
+
+    assert response.message.content == "anthropic-reply"
+    provider_name, request = log[0]
+    assert provider_name == "anthropic"
+    assert request.model == "claude-3-5-sonnet-20241022"
