@@ -12,6 +12,7 @@ from functools import lru_cache
 from importlib import import_module
 from pathlib import Path
 from types import ModuleType
+from collections.abc import Iterable
 from typing import Any, Dict, Sequence
 
 from compatibility import ensure_numpy_compatible, NumpyCompatibilityError
@@ -188,11 +189,21 @@ def transcribe_audio(audio_path: Path,
     try:
         model = module.load_model(model_name)
     except RuntimeError as exc:
-        available_models: tuple[str, ...] = AVAILABLE_MODELS
-        if hasattr(module, "available_models"):
+        module_available_models = getattr(module, "available_models", None)
+        available_models = AVAILABLE_MODELS
+        if callable(module_available_models):
             try:
-                available_models = tuple(module.available_models())
-            except Exception:  # pragma: no cover - defensive fallback
+                raw_available_models = module_available_models()
+                if isinstance(raw_available_models,
+                              Iterable) and not isinstance(
+                                  raw_available_models,
+                                  (str, bytes)):
+                    available_models = tuple(str(
+                        model) for model in raw_available_models)
+                else:
+                    available_models = AVAILABLE_MODELS
+            except (RuntimeError, ValueError, TypeError):
+                # pragma: no cover - defensive fallback
                 available_models = AVAILABLE_MODELS
         message = str(exc).lower()
         is_unknown_model_error = "not found" in message or "unknown" in message
