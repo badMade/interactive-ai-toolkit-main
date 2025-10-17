@@ -63,8 +63,8 @@ virtual environment with the vetted, pinned requirements.
 
 Why Some Files Are Not Tracked
 ------------------------------
-- ``lesson_recording.mp3`` is part of version control so the sample workflow
-  has reproducible audio out of the box.
+- ``lesson_recording.mp3`` intentionally remains in version control so the
+  sample workflow has reproducible audio out of the box.
 - Hugging Face caches for SpeechT5 live under ``~/.cache/huggingface`` and
   do not belong in source control.
 
