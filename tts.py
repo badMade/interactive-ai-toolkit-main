@@ -15,6 +15,7 @@ import wave
 import numpy as np
 
 import torch
+from torch import Tensor
 from transformers import (
     SpeechT5ForTextToSpeech,
     SpeechT5HifiGan,
@@ -58,14 +59,14 @@ def load_speecht5_components(
     return processor, model, vocoder
 
 
-def create_default_speaker_embedding(seed: int = 42) -> torch.Tensor:
+def create_default_speaker_embedding(seed: int = 42) -> Tensor:
     """Create a deterministic speaker embedding tensor for reproducible audio.
 
     Args:
         seed: Random seed used to initialize the PyTorch generator.
 
     Returns:
-        torch.Tensor: Speaker embedding with shape ``(1, 512)`` suitable for
+        Tensor: Speaker embedding with shape ``(1, 512)`` suitable for
         SpeechT5 generation.
     """
 
@@ -78,7 +79,7 @@ def synthesize_speech(
     processor: SpeechT5Processor,
     model: SpeechT5ForTextToSpeech,
     vocoder: SpeechT5HifiGan,
-    speaker_embedding: torch.Tensor,
+    speaker_embedding: Tensor,
 ) -> np.ndarray:
     """Generate a speech waveform for the provided text prompt.
 
@@ -89,7 +90,7 @@ def synthesize_speech(
         model: Acoustic model that generates spectrogram tokens.
         vocoder: HiFi-GAN vocoder used to reconstruct a waveform from model
             outputs.
-        speaker_embedding: Embedding tensor that controls the synthetic voice
+        speaker_embedding: Tensor that controls the synthetic voice
             characteristics.
 
     Returns:
