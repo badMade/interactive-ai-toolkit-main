@@ -15,7 +15,6 @@ import wave
 import numpy as np
 
 import torch
-from torch import Tensor
 from transformers import (
     SpeechT5ForTextToSpeech,
     SpeechT5HifiGan,
@@ -59,7 +58,7 @@ def load_speecht5_components(
     return processor, model, vocoder
 
 
-def create_default_speaker_embedding(seed: int = 42) -> Tensor:
+def create_default_speaker_embedding(seed: int = 42) -> torch.Tensor:
     """Create a deterministic speaker embedding tensor for reproducible audio.
 
     Args:
@@ -79,7 +78,7 @@ def synthesize_speech(
     processor: SpeechT5Processor,
     model: SpeechT5ForTextToSpeech,
     vocoder: SpeechT5HifiGan,
-    speaker_embedding: Tensor,
+    speaker_embedding: torch.Tensor,
 ) -> np.ndarray:
     """Generate a speech waveform for the provided text prompt.
 
