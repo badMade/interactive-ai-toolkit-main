@@ -64,6 +64,14 @@ requests never fail silently.
 └── tts.py                          # CLI for SpeechT5 text-to-speech generation
 ```
 
+## scripts/ Overview
+
+- `scripts/ensure_requirements.py`: Validates Python dependency consistency against the lockfile expectations.
+- `scripts/generate_notes.py`: Regenerates `notes.txt` from the latest transcription and synthesis outputs.
+- `scripts/install_ffmpeg.sh`: Bootstraps FFmpeg on supported platforms for audio preprocessing.
+- `scripts/self_debug.py`: Provides interactive diagnostics for troubleshooting local environments.
+- `scripts/verify_environment_setup.py`: Performs sanity checks to confirm project prerequisites are satisfied.
+
 ## Universal LLM Client
 
 The repository also ships with `universal_llm`, a provider-agnostic client that
@@ -112,8 +120,9 @@ ensure the scripts work consistently across machines.
 
 ## Why Some Files Are Not Tracked
 
-- `lesson_recording.mp3` intentionally remains in version control so the sample
-  workflow has reproducible audio out of the box.
+- `lesson_recording.mp3` intentionally remains in standard Git (not Git LFS) so
+  the sample workflow has reproducible audio out of the box, with the
+  `.gitignore` allow-list rule `!lesson_recording.mp3` documenting the decision.
 - Hugging Face caches for SpeechT5 live under `~/.cache/huggingface` and do not
   belong in source control.
 
