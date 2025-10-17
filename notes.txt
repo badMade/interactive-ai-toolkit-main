@@ -43,10 +43,10 @@ virtual environment with the vetted, pinned requirements.
 
 Why Some Files Are Not Tracked
 ------------------------------
-- ``lesson_recording.mp3`` intentionally remains in version control so the
-  sample workflow has reproducible audio out of the box.
+- ``lesson_recording.mp3`` stays in standard Git so reproducible demos ship
+  with an identical audio sample without depending on Large File Storage.
 - Hugging Face caches for SpeechT5 live under ``~/.cache/huggingface`` and
-  do not belong in source control.
+  remain untracked because they are machine specific.
 
 Internal Architecture Overview
 -------------------------------
@@ -57,11 +57,16 @@ Internal Architecture Overview
 - ``requirements.txt`` centralises the Python dependencies required by both
   command-line tools.
 - ``scripts/`` contains automation helpers to streamline maintenance:
-  - ``ensure_requirements.py`` validates dependency consistency.
-  - ``generate_notes.py`` rebuilds ``notes.txt``.
-  - ``install_ffmpeg.sh`` bootstraps FFmpeg on supported platforms.
-  - ``self_debug.py`` runs interactive diagnostics for troubleshooting.
-  - ``verify_environment_setup.py`` sanity-checks project prerequisites.
+  - ``ensure_requirements.py`` validates Python dependency consistency
+    against the lockfile expectations.
+  - ``generate_notes.py`` regenerates ``notes.txt`` from the latest
+    transcription and synthesis outputs.
+  - ``install_ffmpeg.sh`` bootstraps FFmpeg on supported platforms for audio
+    preprocessing.
+  - ``self_debug.py`` provides interactive diagnostics for troubleshooting
+    local environments.
+  - ``verify_environment_setup.py`` performs sanity checks to confirm
+    project prerequisites are satisfied.
 
 Hands-on Walkthrough
 --------------------
