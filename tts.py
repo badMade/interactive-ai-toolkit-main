@@ -7,22 +7,17 @@ file using deterministic speaker embeddings for reproducible output.
 """
 from __future__ import annotations
 
-from pathlib import Path
-from typing import Tuple
 import sys
 import wave
+from pathlib import Path
+from typing import cast
+from wave import Wave_write
 
 import numpy as np
-
 import torch
+from compatibility import NumpyCompatibilityError, ensure_numpy_compatible
 from torch import Tensor
-from transformers import (
-    SpeechT5ForTextToSpeech,
-    SpeechT5HifiGan,
-    SpeechT5Processor
-)
-
-from compatibility import ensure_numpy_compatible, NumpyCompatibilityError
+from transformers import SpeechT5ForTextToSpeech, SpeechT5HifiGan, SpeechT5Processor
 
 DEFAULT_TEXT = "Welcome to inclusive education with AI."
 DEFAULT_SAMPLE_RATE = 16000
@@ -39,7 +34,7 @@ def _ensure_numpy_ready() -> None:
 def load_speecht5_components(
     model_id: str = DEFAULT_MODEL_ID,
     vocoder_id: str = DEFAULT_VOCODER_ID,
-) -> Tuple[SpeechT5Processor, SpeechT5ForTextToSpeech, SpeechT5HifiGan]:
+) -> tuple[SpeechT5Processor, SpeechT5ForTextToSpeech, SpeechT5HifiGan]:
     """Load the processor, acoustic model, and vocoder for SpeechT5 synthesis.
 
     Args:
@@ -49,7 +44,7 @@ def load_speecht5_components(
             checkpoint.
 
     Returns:
-        Tuple[SpeechT5Processor, SpeechT5ForTextToSpeech, SpeechT5HifiGan]:
+        tuple[SpeechT5Processor, SpeechT5ForTextToSpeech, SpeechT5HifiGan]:
         Fully initialized SpeechT5 processor, acoustic model, and vocoder.
     """
 
@@ -127,7 +122,7 @@ def save_waveform(waveform: np.ndarray,
 
     # Convert to 16-bit PCM and write with the standard library
     pcm16 = (arr * 32767.0).astype(np.int16)
-    with wave.open(str(output_path), "wb") as wf:
+    with cast(Wave_write, wave.open(str(output_path), "wb")) as wf:
         wf.setnchannels(1)
         wf.setsampwidth(2)  # 16-bit PCM
         wf.setframerate(int(sample_rate))
