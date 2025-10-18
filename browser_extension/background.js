@@ -295,17 +295,31 @@ async function handleRequestPageRead(message, sender) {
   }
   const apiKey = await loadApiKey();
   const settings = await loadSettings();
-  const pageData = await collectPageData();
-
-  const summarizationRequired = Boolean((summarizationEnabled ?? settings.summarizationEnabled) && pageData.text && pageData.text.length > (settings.summarizationThreshold ?? DEFAULT_SETTINGS.summarizationThreshold));
-  let narrationText = pageData.text ?? '';
-  if (summarizationRequired) {
-    narrationText = await getSummary({ apiKey, pageData, targetLanguage: targetLanguage ?? settings.outputLanguage });
-  }
-  const language = targetLanguage ?? settings.outputLanguage;
   const controller = new AbortController();
   activeNarrations.set(portId, controller);
   try {
+    if (controller.signal.aborted) {
+      return { cancelled: true };
+    }
+
+    const pageData = await collectPageData();
+
+    const summarizationRequired = Boolean((summarizationEnabled ?? settings.summarizationEnabled) && pageData.text && pageData.text.length > (settings.summarizationThreshold ?? DEFAULT_SETTINGS.summarizationThreshold));
+    let narrationText = pageData.text ?? '';
+    if (summarizationRequired) {
+      narrationText = await getSummary({
+        apiKey,
+        pageData,
+        targetLanguage: targetLanguage ?? settings.outputLanguage,
+        signal: controller.signal
+      });
+    }
+
+    if (controller.signal.aborted) {
+      return { cancelled: true };
+    }
+
+    const language = targetLanguage ?? settings.outputLanguage;
     if (controller.signal.aborted) {
       return { cancelled: true };
     }
@@ -372,7 +386,7 @@ async function incrementUsage(partial) {
   return updated;
 }
 
-async function callChatCompletion(apiKey, payload, modelUsed) {
+async function callChatCompletion(apiKey, payload, modelUsed, signal) {
   await enforceBudget();
   const response = await fetch(`${OPENAI_BASE_URL}/chat/completions`, {
     method: 'POST',
@@ -380,7 +394,8 @@ async function callChatCompletion(apiKey, payload, modelUsed) {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${apiKey}`
     },
-    body: JSON.stringify(payload)
+    body: JSON.stringify(payload),
+    signal
   });
   if (!response.ok) {
     const text = await response.text();
@@ -426,10 +441,15 @@ async function getActiveTab() {
   return tab;
 }
 
-async function getSummary({ apiKey, pageData, targetLanguage }) {
+async function getSummary({ apiKey, pageData, targetLanguage, signal }) {
   const cache = await loadCache();
   const hash = await hashText(pageData.text);
   const cacheKey = `${pageData.url}:${targetLanguage}:${hash}`;
+  if (signal?.aborted) {
+    const abortError = new Error('Aborted');
+    abortError.name = 'AbortError';
+    throw abortError;
+  }
   if (cache.summaries[cacheKey]) {
     return cache.summaries[cacheKey].text;
   }
@@ -438,6 +458,11 @@ async function getSummary({ apiKey, pageData, targetLanguage }) {
   const chunked = chunkText(pageData.text, 4500);
   const summaries = [];
   for (const chunk of chunked) {
+    if (signal?.aborted) {
+      const abortError = new Error('Aborted');
+      abortError.name = 'AbortError';
+      throw abortError;
+    }
     const payload = {
       model,
       temperature: 0.2,
@@ -449,7 +474,7 @@ async function getSummary({ apiKey, pageData, targetLanguage }) {
         }
       ]
     };
-    const data = await callChatCompletion(apiKey, payload, model);
+    const data = await callChatCompletion(apiKey, payload, model, signal);
     summaries.push(data.choices?.[0]?.message?.content ?? '');
   }
   const finalSummary = summaries.join('\n');
