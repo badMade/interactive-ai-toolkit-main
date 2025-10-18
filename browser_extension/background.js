@@ -43,6 +43,7 @@ let sessionState = {
 
 // Active ports streaming audio back to the popup UI.
 const audioPorts = new Map();
+const activeNarrations = new Map();
 
 browserApi.runtime.onInstalled.addListener(async () => {
   await ensureDefaults();
@@ -89,6 +90,7 @@ function getHandler(type) {
     LOAD_SETTINGS: handleLoadSettings,
     SAVE_SETTINGS: handleSaveSettings,
     REQUEST_PAGE_READ: handleRequestPageRead,
+    STOP_PAGE_READ: handleStopPageRead,
     TRANSCRIBE_AUDIO: handleTranscribeAudio,
     ASK_QUESTION: handleAskQuestion,
     LOAD_USAGE: handleLoadUsage,
@@ -301,19 +303,49 @@ async function handleRequestPageRead(message, sender) {
     narrationText = await getSummary({ apiKey, pageData, targetLanguage: targetLanguage ?? settings.outputLanguage });
   }
   const language = targetLanguage ?? settings.outputLanguage;
-  await playNarration({
-    apiKey,
-    port,
-    voice: voice ?? settings.voice,
-    format: ttsFormat ?? settings.ttsFormat,
-    text: narrationText,
-    pageData,
-    language
-  });
-  await incrementUsage({
-    ttsCharacters: narrationText.length,
-    estimatedCost: narrationText.length * COST_ESTIMATES.ttsPerCharacter
-  });
+  const controller = new AbortController();
+  activeNarrations.set(portId, controller);
+  try {
+    if (controller.signal.aborted) {
+      return { cancelled: true };
+    }
+    const result = await playNarration({
+      apiKey,
+      port,
+      voice: voice ?? settings.voice,
+      format: ttsFormat ?? settings.ttsFormat,
+      text: narrationText,
+      pageData,
+      language,
+      signal: controller.signal
+    });
+    if (result.cancelled) {
+      return { cancelled: true };
+    }
+    await incrementUsage({
+      ttsCharacters: narrationText.length,
+      estimatedCost: narrationText.length * COST_ESTIMATES.ttsPerCharacter
+    });
+    return { completed: true };
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      return { cancelled: true };
+    }
+    throw error;
+  } finally {
+    activeNarrations.delete(portId);
+  }
+}
+
+async function handleStopPageRead(message) {
+  const { portId } = message ?? {};
+  if (!portId) {
+    return true;
+  }
+  const controller = activeNarrations.get(portId);
+  if (controller) {
+    controller.abort();
+  }
   return true;
 }
 
@@ -443,13 +475,16 @@ function chunkText(text, size) {
   return chunks;
 }
 
-async function playNarration({ apiKey, port, voice, format, text, pageData, language }) {
+async function playNarration({ apiKey, port, voice, format, text, pageData, language, signal }) {
   const cacheKey = await buildAudioCacheKey({ text, voice, format, language, url: pageData.url });
   const cache = await loadCache();
   const cachedAudio = cache.audio[cacheKey];
   if (cachedAudio) {
-    await streamCachedAudio(port, cachedAudio, format);
-    return;
+    if (signal?.aborted) {
+      return { cancelled: true };
+    }
+    await streamCachedAudio(port, cachedAudio, format, signal);
+    return { cancelled: Boolean(signal?.aborted) };
   }
   await enforceBudget(text.length * COST_ESTIMATES.ttsPerCharacter);
   port.postMessage({ type: 'tts-start', format });
@@ -461,45 +496,64 @@ async function playNarration({ apiKey, port, voice, format, text, pageData, lang
     response_format: format || 'mp3',
     text
   };
-  const response = await fetch(`${OPENAI_BASE_URL}/audio/speech`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`
-    },
-    body: JSON.stringify(payload)
-  });
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Speech synthesis failed: ${errorText}`);
-  }
-  const reader = response.body?.getReader();
-  if (!reader) {
-    throw new Error('Streaming is not supported in this browser');
-  }
   const chunks = [];
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) {
-      break;
+  try {
+    const response = await fetch(`${OPENAI_BASE_URL}/audio/speech`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`
+      },
+      body: JSON.stringify(payload),
+      signal
+    });
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Speech synthesis failed: ${errorText}`);
     }
-    if (value) {
-      const chunkCopy = new Uint8Array(value);
-      chunks.push(chunkCopy);
-      const transferable = chunkCopy.buffer.slice(0);
-      port.postMessage({ type: 'tts-chunk', chunk: transferable }, [transferable]);
+    const reader = response.body?.getReader();
+    if (!reader) {
+      throw new Error('Streaming is not supported in this browser');
     }
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+      if (value) {
+        const chunkCopy = new Uint8Array(value);
+        chunks.push(chunkCopy);
+        const transferable = chunkCopy.buffer.slice(0);
+        port.postMessage({ type: 'tts-chunk', chunk: transferable }, [transferable]);
+      }
+    }
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      return { cancelled: true };
+    }
+    throw error;
   }
   port.postMessage({ type: 'tts-end' });
   const combined = combineChunks(chunks);
   await storeAudio(cacheKey, combined, format);
+  return { cancelled: false };
 }
 
-async function streamCachedAudio(port, cachedAudio, format) {
+async function streamCachedAudio(port, cachedAudio, format, signal) {
+  if (signal?.aborted) {
+    return;
+  }
   port.postMessage({ type: 'tts-start', format });
   const binary = Uint8Array.from(atob(cachedAudio.data), (char) => char.charCodeAt(0));
+  if (signal?.aborted) {
+    return;
+  }
   port.postMessage({ type: 'tts-chunk', chunk: binary.buffer }, [binary.buffer]);
+  if (signal?.aborted) {
+    return;
+  }
   port.postMessage({ type: 'tts-end' });
+  return;
 }
 
 function combineChunks(chunks) {
