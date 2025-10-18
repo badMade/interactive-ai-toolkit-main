@@ -118,6 +118,9 @@ elements.startReading.addEventListener('click', async () => {
 });
 
 elements.stopReading.addEventListener('click', () => {
+  browserApi.runtime
+    .sendMessage({ type: 'STOP_PAGE_READ', portId })
+    .catch((error) => console.debug('Failed to cancel narration', error));
   stopPlayback();
   elements.startReading.disabled = false;
   elements.stopReading.disabled = true;
