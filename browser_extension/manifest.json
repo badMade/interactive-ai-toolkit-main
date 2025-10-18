@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "name": "Universal Screen Reader Assistant",
+  "version": "0.1.0",
+  "description": "Reads pages aloud, answers questions, and controls OpenAI usage with cost-aware workflows for visually-impaired users.",
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "action": {
+    "default_title": "Screen Reader Assistant",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "options_ui": {
+    "page": "popup.html",
+    "open_in_tab": true
+  }
+}
