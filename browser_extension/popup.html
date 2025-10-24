@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Screen Reader Assistant</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main class="container" aria-label="Screen reader assistant settings">
+      <header class="header">
+        <h1>Screen Reader Assistant</h1>
+        <p class="tagline">Cost-aware AI narration for every browser.</p>
+      </header>
+
+      <section class="panel" aria-labelledby="credentials-heading">
+        <div class="panel__header">
+          <h2 id="credentials-heading">OpenAI Credentials</h2>
+          <button id="remove-key" class="link-button" type="button" aria-describedby="api-key" title="Remove stored API key">
+            Remove
+          </button>
+        </div>
+        <div class="field">
+          <label for="api-key">API Key</label>
+          <input id="api-key" name="api-key" type="password" autocomplete="off" placeholder="sk-..." aria-required="true" />
+        </div>
+        <div class="field">
+          <label for="passphrase">Encryption Passphrase</label>
+          <input id="passphrase" name="passphrase" type="password" autocomplete="off" placeholder="Required to unlock key" aria-required="true" />
+        </div>
+        <div class="actions">
+          <button id="save-key" type="button" class="primary">Save &amp; Encrypt</button>
+          <span id="key-status" role="status" aria-live="polite"></span>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="settings-heading">
+        <h2 id="settings-heading">Playback Settings</h2>
+        <div class="grid">
+          <div class="field">
+            <label for="voice-select">Voice</label>
+            <select id="voice-select" name="voice">
+              <option value="alloy">Alloy</option>
+              <option value="ash">Ash</option>
+              <option value="ballad">Ballad</option>
+              <option value="coral">Coral</option>
+              <option value="echo">Echo</option>
+              <option value="fable">Fable</option>
+              <option value="nova">Nova</option>
+              <option value="onyx">Onyx</option>
+              <option value="sage">Sage</option>
+              <option value="shimmer">Shimmer</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="tts-format">Audio Format</label>
+            <select id="tts-format" name="format">
+              <option value="mp3">MP3 (default)</option>
+              <option value="wav">WAV / PCM</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="input-language">Speech Recognition Language</label>
+            <input id="input-language" type="text" placeholder="e.g. en, es" />
+          </div>
+          <div class="field">
+            <label for="output-language">Narration Language</label>
+            <input id="output-language" type="text" placeholder="e.g. en, fr" />
+          </div>
+        </div>
+        <div class="field field--toggle">
+          <input id="summaries-toggle" type="checkbox" />
+          <label for="summaries-toggle">Summarize long pages before reading</label>
+        </div>
+        <div class="field field--toggle">
+          <input id="transcription-toggle" type="checkbox" />
+          <label for="transcription-toggle">Allow transcription on long sessions</label>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="cost-heading">
+        <h2 id="cost-heading">Cost Controls</h2>
+        <div class="field">
+          <label for="monthly-limit">Monthly budget (USD)</label>
+          <input id="monthly-limit" type="number" min="0" step="0.5" />
+        </div>
+        <div class="usage" role="status" aria-live="polite">
+          <p><strong>Usage this period</strong></p>
+          <ul>
+            <li>Transcription: <span id="usage-transcription">0</span> minutes</li>
+            <li>TTS characters: <span id="usage-tts">0</span></li>
+            <li>Chat tokens: <span id="usage-chat">0</span></li>
+            <li>Estimated cost: $<span id="usage-cost">0.00</span></li>
+          </ul>
+        </div>
+        <button id="clear-cache" type="button" class="link-button">Clear caches</button>
+      </section>
+
+      <section class="panel" aria-labelledby="controls-heading">
+        <h2 id="controls-heading">Controls</h2>
+        <div class="controls">
+          <button id="start-reading" type="button" class="primary">Start reading</button>
+          <button id="stop-reading" type="button" disabled>Stop</button>
+        </div>
+        <div class="push-to-talk">
+          <button id="push-to-talk" type="button" aria-pressed="false" aria-label="Hold to talk">Hold to talk</button>
+          <div class="transcript" aria-live="polite" aria-atomic="true">
+            <span id="transcript-text">Speech transcript will appear here.</span>
+          </div>
+        </div>
+        <div class="field">
+          <label for="question-input">Ask about this page</label>
+          <textarea id="question-input" rows="2" placeholder="Example: summarize the main points"></textarea>
+        </div>
+        <button id="ask-question" type="button">Ask</button>
+      </section>
+
+      <section class="panel" aria-label="AI voice disclaimer">
+        <p class="disclaimer">
+          ⚠️ Voices are generated by AI. Review transcriptions before sharing sensitive information.
+        </p>
+      </section>
+
+      <audio id="player" controls class="sr-only" aria-hidden="true"></audio>
+    </main>
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

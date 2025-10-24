@@ -7,21 +7,17 @@ file using deterministic speaker embeddings for reproducible output.
 """
 from __future__ import annotations
 
-from pathlib import Path
-from typing import Tuple
 import sys
 import wave
+from pathlib import Path
+from typing import cast
+from wave import Wave_write
 
 import numpy as np
-
 import torch
-from transformers import (
-    SpeechT5ForTextToSpeech,
-    SpeechT5HifiGan,
-    SpeechT5Processor
-)
-
-from compatibility import ensure_numpy_compatible, NumpyCompatibilityError
+from compatibility import NumpyCompatibilityError, ensure_numpy_compatible
+from torch import Tensor
+from transformers import SpeechT5ForTextToSpeech, SpeechT5HifiGan, SpeechT5Processor
 
 DEFAULT_TEXT = "Welcome to inclusive education with AI."
 DEFAULT_SAMPLE_RATE = 16000
@@ -38,7 +34,7 @@ def _ensure_numpy_ready() -> None:
 def load_speecht5_components(
     model_id: str = DEFAULT_MODEL_ID,
     vocoder_id: str = DEFAULT_VOCODER_ID,
-) -> Tuple[SpeechT5Processor, SpeechT5ForTextToSpeech, SpeechT5HifiGan]:
+) -> tuple[SpeechT5Processor, SpeechT5ForTextToSpeech, SpeechT5HifiGan]:
     """Load the processor, acoustic model, and vocoder for SpeechT5 synthesis.
 
     Args:
@@ -48,7 +44,7 @@ def load_speecht5_components(
             checkpoint.
 
     Returns:
-        Tuple[SpeechT5Processor, SpeechT5ForTextToSpeech, SpeechT5HifiGan]:
+        tuple[SpeechT5Processor, SpeechT5ForTextToSpeech, SpeechT5HifiGan]:
         Fully initialized SpeechT5 processor, acoustic model, and vocoder.
     """
 
@@ -58,14 +54,14 @@ def load_speecht5_components(
     return processor, model, vocoder
 
 
-def create_default_speaker_embedding(seed: int = 42) -> torch.Tensor:
+def create_default_speaker_embedding(seed: int = 42) -> Tensor:
     """Create a deterministic speaker embedding tensor for reproducible audio.
 
     Args:
         seed: Random seed used to initialize the PyTorch generator.
 
     Returns:
-        torch.Tensor: Speaker embedding with shape ``(1, 512)`` suitable for
+        Tensor: Speaker embedding with shape ``(1, 512)`` suitable for
         SpeechT5 generation.
     """
 
@@ -78,7 +74,7 @@ def synthesize_speech(
     processor: SpeechT5Processor,
     model: SpeechT5ForTextToSpeech,
     vocoder: SpeechT5HifiGan,
-    speaker_embedding: torch.Tensor,
+    speaker_embedding: Tensor,
 ) -> np.ndarray:
     """Generate a speech waveform for the provided text prompt.
 
@@ -89,7 +85,7 @@ def synthesize_speech(
         model: Acoustic model that generates spectrogram tokens.
         vocoder: HiFi-GAN vocoder used to reconstruct a waveform from model
             outputs.
-        speaker_embedding: Embedding tensor that controls the synthetic voice
+        speaker_embedding: Tensor that controls the synthetic voice
             characteristics.
 
     Returns:
@@ -126,7 +122,7 @@ def save_waveform(waveform: np.ndarray,
 
     # Convert to 16-bit PCM and write with the standard library
     pcm16 = (arr * 32767.0).astype(np.int16)
-    with wave.open(str(output_path), "wb") as wf:
+    with cast(Wave_write, wave.open(str(output_path), "wb")) as wf:
         wf.setnchannels(1)
         wf.setsampwidth(2)  # 16-bit PCM
         wf.setframerate(int(sample_rate))
